@@ -1,23 +1,52 @@
 ---
 // Import the global.css file here so that it is included on
 // all pages through the use of the <BaseHead /> component.
-import '../styles/global.css';
+import "../styles/global.css";
 
 export interface Props {
-	title: string;
-	description: string;
-	image?: string;
+  title: string;
+  description: string;
+  image?: string;
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
-const { title, description, image = '/placeholder-social.jpg' } = Astro.props;
+const { title, description, image = "/placeholder-social.jpg" } = Astro.props;
 ---
 
 <!-- Global Metadata -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title={`RSS Feed for ${canonicalURL}`}
+  href="/rss.xml"
+/>
+{/* <!-- Für Apple-Geräte --> */}
+<link
+  rel="apple-touch-icon"
+  sizes="180x180"
+  href="favicon/apple-touch-icon-180x180.png"
+/>
+{/* <!-- Für Browser --> */}
+<link
+  rel="shortcut icon"
+  type="image/x-icon"
+  href="favicon/favicon-32x32.ico"
+/>
+<link
+  rel="icon"
+  type="image/png"
+  sizes="96x96"
+  href="favicon/favicon-96x96.png"
+/>
+{/* <!-- Für Windows Metro --> */}
+<meta
+  name="msapplication-square310x310logo"
+  content="favicon/mstile-310x310.png"
+/>
+<meta name="msapplication-TileColor" content="#FFFFFF" />
 <meta name="generator" content={Astro.generator} />
 
 <!-- Canonical URL -->
