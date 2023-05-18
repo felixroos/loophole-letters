@@ -1,25 +1,13 @@
----
-import HeaderLink from "./HeaderLink.astro";
-import { SITE_TITLE } from "../consts";
----
-
-<header>
-  <h2>
-    <a href="/">{SITE_TITLE}</a>
-  </h2>
-  <!-- <nav>
-		<HeaderLink href="/">Home</HeaderLink>
-		<HeaderLink href="/blog">Blog</HeaderLink>
-		<HeaderLink href="/about">About</HeaderLink>
-		<HeaderLink href="https://post.lurk.org/@froos" target="_blank">Mastodon</HeaderLink>
-		<HeaderLink href="https://github.com/felixroos/" target="_blank">GitHub</HeaderLink>
-	</nav> -->
+<header
+  class="z-[1999] sticky top-0 bg-slate-900 dark:bg-slate-800 font-semibold p-2 text-white flex justify-center shadow-xl border-b border-gray-500 dark:border-gray-800"
+>
+  <div class="max-w-3xl w-full p-2 flex justify-between items-center">
+    <h1 class="sm:text-3xl text-2xl">
+      <a href={"/"} class="flex items-center">
+        <img src="/logo.png" alt="Logo" class="h-10 w-10 mr-3 relative" />
+        loophole letters
+      </a>{" "}
+    </h1>
+    <!-- <ThemeSwitch /> -->
+  </div>
 </header>
-<style>
-  header {
-    margin: 0em 0 2em;
-  }
-  h2 {
-    margin: 0.5em 0;
-  }
-</style>

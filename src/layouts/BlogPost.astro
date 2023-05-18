@@ -1,51 +1,30 @@
 ---
-import type { CollectionEntry } from 'astro:content';
-import BaseHead from '../components/BaseHead.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
-import FormattedDate from '../components/FormattedDate.astro';
+import type { CollectionEntry } from "astro:content";
+import Tag from "../components/Tag.astro";
+import FormattedDate from "../components/FormattedDate.astro";
 
-type Props = CollectionEntry<'blog'>['data'];
+type Props = CollectionEntry<"blog">["data"];
 
-const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+const { title, date, tags } = Astro.props;
 ---
 
-<html lang="en">
-	<head>
-		<BaseHead title={title} description={description} />
-		<style>
-			.title {
-				font-size: 2em;
-				margin: 0.25em 0 0;
-			}
-			hr {
-				border-top: 1px solid #ddd;
-				margin: 1rem 0;
-			}
-			.last-updated-on {
-				font-style: italic;
-			}
-		</style>
-	</head>
-
-	<body>
-		<Header />
-		<main>
-			<article>
-				{heroImage && <img width={720} height={360} src={heroImage} alt="" />}
-				<h1 class="title">{title}</h1>
-				<FormattedDate date={pubDate} />
-				{
-					updatedDate && (
-						<div class="last-updated-on">
-							Last updated on <FormattedDate date={updatedDate} />
-						</div>
-					)
-				}
-				<hr />
-				<slot />
-			</article>
-		</main>
-		<Footer />
-	</body>
-</html>
+<article
+  class="prose font-serif max-w-none prose-headings:font-sans prose-headings:font-black prose-headings:text-slate-900 dark:prose-headings:text-gray-200 dark:text-gray-400 dark:prose-strong:text-gray-400 dark:prose-code:text-slate-400 dark:prose-a:text-gray-300 prose-a:text-slate-900 prose-blockquote:text-slate-800 dark:prose-blockquote:text-slate-400"
+>
+  <div
+    class="border-b-4 border-dotted pb-2 border-slate-900 mb-4 dark:border-slate-400"
+  >
+    <div class="md:flex justify-between">
+      <h1 class="mb-4">{title}</h1>
+      <div class="flex space-x-2 items-start pb-4 md:pb-0">
+        {tags?.map((tag, i) => <Tag key={i}>{tag}</Tag>)}
+      </div>
+    </div>
+    <p class="italic p-0 m-0">
+      <FormattedDate date={date} />
+    </p>
+  </div>
+  <div>
+    <slot />
+  </div>
+</article>
