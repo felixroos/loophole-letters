@@ -1,0 +1,71 @@
+---
+title: "Guitar Chord Voicings"
+description: "What Guitarists play"
+date: "2023-05-19"
+tags: ["voicings", "guitar"]
+draft: true
+---
+
+This is a guitar fretboard:
+
+import { Fretboard } from "../../components/guitar/Fretboard";
+
+<Fretboard />
+
+- It has 6 strings that are tuned to the notes E2, A2, D3, G3, B3, E4 from lowest to highest.
+- As midi numbers, these are 40, 45, 50, 55, 59, 64
+- To change the pitch of a single string, you can press it down at one of the frets.
+- Each fret adds one semitone to the strings base note, so if you press fret 2 on the low E string, you get E2 + 2 semitones = F#2.
+
+## Fretboard Coordinates
+
+Structurally, the fretboard of a guitar can be modeled as a 2d grid, where each fret is identified with a x:y position. Some examples:
+
+- 0:0 = E2, 1:0 = E2+1 = F2, 2:0 = E2+2 = F#3 ....
+- 0:1 = A2, 1:1= A#2, 2:1 = G2 ....
+- 0:2 = D3, 1:2= D#3, 2:2 = G2 ....
+
+colorized freboard, to see which pitches are the same?
+
+To translate these coordinates, we can write a little function:
+
+```js
+let fretmidi = [40, 45, 50, 55, 59, 64];
+let fret2midi = (x, y) => frets[y] + x;
+
+fret2midi(0, 0); // 40 = E2
+fret2midi(1, 0); // 41 = F2
+fret2midi(0, 1); // 45 = A2
+fret2midi(1, 1); // 46 = A#2
+```
+
+## A more concise "Fretcode"
+
+If we want to express a chord, we could invent a little code.
+For example, we could write `---433` to express the coordinates **4**:3 **3**:4 **3**:5.
+
+- In this notation, each character represents one string.
+- A `-` means that the string should not be played.
+- A `0` means the string should be played open.
+- Any other number is just the x position of the string.
+
+Again, we can write a little function to parse this fretcode into notes (midi numbers):
+
+```js
+let fretmidi = [40, 45, 50, 55, 59, 64];
+let fret2midi = (x, y) => frets[y] + x;
+
+function fretcode2midi(fretcode) {
+  let midi = [];
+  frecode.split("").forEach((fret, y) => {
+    if (fret === "-") {
+      return; // skip if "-"
+    }
+    const x = parseInt(fret, 16);
+    midi.push(fret2midi(x, y));
+  });
+  return midi;
+}
+
+fretcode2midi("---433"); // [B3, D4, G4]
+```
