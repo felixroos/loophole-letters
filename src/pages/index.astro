@@ -1,9 +1,8 @@
 ---
-import { compareDesc } from "date-fns";
 import { getCollection } from "astro:content";
-import FormattedDate from "../components/FormattedDate.astro";
+import { compareDesc } from "date-fns";
+import PostList from "../components/PostList.astro";
 import Layout from "../components/Layout.astro";
-import Tag from "../components/Tag.astro";
 
 const posts = (await getCollection("blog"))
   .filter((p) => !p.data.draft)
@@ -15,49 +14,5 @@ const posts = (await getCollection("blog"))
     Welcome to my blog! This is where I write about music and coding stuff that
     I find interesting.
   </p>
-  <section>
-    {
-      posts.map((post) => (
-        <a
-          href={`/${post.slug}/`}
-          class="block cursor-pointer py-6 hover:bg-slate-100 dark:hover:bg-slate-800 border-t-4 border-dotted border-slate-900 dark:border-slate-400"
-        >
-          <div class="sm:flex space-y-2 sm:space-y-0 sm:space-x-2 sm:items-start sm:justify-between">
-            <div class="sm:flex sm:space-x-4">
-              <div>
-                <h1 class="block sm:hidden font-sans font-black text-2xl text-slate-900 dark:text-gray-200">
-                  {post.data.title}
-                </h1>
-                <p class="block sm:hidden italic text-gray-500 dark:text-gray-400 mb-2">
-                  <FormattedDate date={post.data.date} />
-                </p>
-                <div class="w-full relative h-[120px] sm:w-[120px] sm:h-[120px] rounded-md sm:rounded-xl border border-slate-400 overflow-hidden shadow-md">
-                  <img
-                    src={post.data.image?.slice(1) || "/logo.png"}
-                    alt={post.data.title}
-                  />
-                </div>
-              </div>
-              <div>
-                <h1 class="hidden sm:block font-sans font-black text-2xl dark:text-gray-200">
-                  {post.data.title}
-                </h1>
-                <p class="hidden sm:block italic text-gray-500 dark:text-gray-400">
-                  <FormattedDate date={post.data.date} />
-                </p>
-                <p class="font-serif mt-2 dark:text-gray-400">
-                  {post.data.description}
-                </p>
-              </div>
-            </div>
-            <div class="flex space-x-1 items-start whitespace-nowrap">
-              {post.data.tags?.map((tag, i) => (
-                <Tag key={i}>{tag}</Tag>
-              ))}
-            </div>
-          </div>
-        </a>
-      ))
-    }
-  </section>
+  <PostList posts={posts} />
 </Layout>
