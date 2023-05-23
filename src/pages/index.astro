@@ -5,9 +5,9 @@ import FormattedDate from "../components/FormattedDate.astro";
 import Layout from "../components/Layout.astro";
 import Tag from "../components/Tag.astro";
 
-const posts = (await getCollection("blog")).sort((a, b) =>
-  compareDesc(a.data.date, b.data.date)
-);
+const posts = (await getCollection("blog"))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => compareDesc(b.data.date, a.data.date));
 ---
 
 <Layout>
