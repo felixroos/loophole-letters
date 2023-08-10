@@ -7,7 +7,7 @@ image: /img/skanner.png
 ---
 
 A few days ago, I was at [ZKM](https://zkm.de/) with [Toplap Karlsruhe](https://toplap-ka.de/),
-where we presented live coding to a general audience as part of [kamuna](https://www.kamuna.de/).
+where we presented live coding as part of [kamuna](https://www.kamuna.de/).
 
 We had a booth where we presented code snippets of different live coding systems (SuperCollider, Hydra, Strudel).
 To make the interaction more fun and also more quick, we used a barcode scanner + flyers that people could find.
@@ -81,6 +81,10 @@ Using websockets also has the advantage that multiple computers can be used as r
 
 You can either use [this website](https://barcode.tec-it.com/en/Code128?data=ABC-abc-1234) or use [this lib](https://github.com/lindell/JsBarcode)
 
+Here are some of our Flyers:
+
+![flyers](/img/flyers.jpeg)
+
 ## The Code
 
 You can find the full code in [this repo](https://github.com/felixroos/sKAnner/).
@@ -101,22 +105,23 @@ Instead of using the node script for receiving codes, they can also be received 
 Here is a simplified example of what I did:
 
 ```js
-const socket = window.socket || new WebSocket("ws://192.168.1.34:4422");
+const socket = window.socket || new WebSocket("ws://192.168.1.36:4422");
 socket.onmessage = (event) => {
-  console.log("scanned", event.data);
-  window.code = event.data;
+  window.code = Number(event.data.slice(-3, -1));
+  console.log("scanned", event.data, window.code);
 };
 
 const ref = (getter) =>
   pure(1)
     .withValue(() => reify(getter()))
     .innerJoin();
+window.code = 42;
 const codeRef = ref(() => window.code);
 
-note(codeRef); // expects codes to contain valid notes
+note(codeRef).fast(2).s("sawtooth").clip(0.125).delay(0.5);
 ```
 
-replacing `192.168.1.34` with the IP of the raspberry pi, the above code will receive barcodes directly in the Strudel REPL.
+replacing `192.168.1.36` with the IP of the raspberry pi, the above code will receive barcodes directly in the Strudel REPL.
 For each new code, the global variable `window.code` will be updated. That variable is then used with a `ref` to dynamically set the `note` value.
 (I took inspiration [here](https://github.com/tidalcycles/strudel/discussions/353#discussioncomment-4944925).)
 
