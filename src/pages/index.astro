@@ -6,7 +6,7 @@ import Layout from "../components/Layout.astro";
 
 const posts = (await getCollection("blog"))
   .filter((p) => !p.data.draft)
-  .sort((a, b) => compareDesc(b.data.date, a.data.date));
+  .sort((a, b) => compareDesc(a.data.date, b.data.date));
 ---
 
 <Layout>
