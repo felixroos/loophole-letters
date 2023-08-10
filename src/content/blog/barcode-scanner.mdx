@@ -6,6 +6,8 @@ tags: ["hardware", "strudel"]
 image: /img/skanner.png
 ---
 
+import { YouTube } from "@astro-community/astro-embed-youtube";
+
 A few days ago, I was at [ZKM](https://zkm.de/) with [Toplap Karlsruhe](https://toplap-ka.de/),
 where we presented live coding as part of [kamuna](https://www.kamuna.de/).
 
@@ -85,6 +87,12 @@ Here are some of our Flyers:
 
 ![flyers](/img/flyers.jpeg)
 
+## Demo
+
+Here's a little Demo of how the interaction looks like:
+
+<YouTube id="02O01Ueq_m8" playlabel="Load Video from YouTube" />
+
 ## The Code
 
 You can find the full code in [this repo](https://github.com/felixroos/sKAnner/).
@@ -124,6 +132,10 @@ note(codeRef).fast(2).s("sawtooth").clip(0.125).delay(0.5);
 replacing `192.168.1.36` with the IP of the raspberry pi, the above code will receive barcodes directly in the Strudel REPL.
 For each new code, the global variable `window.code` will be updated. That variable is then used with a `ref` to dynamically set the `note` value.
 (I took inspiration [here](https://github.com/tidalcycles/strudel/discussions/353#discussioncomment-4944925).)
+
+Here's another demo of the code above:
+
+<YouTube id="PKzT_n9TGqU" playlabel="Load Video from YouTube" />
 
 ## Conclusion
 

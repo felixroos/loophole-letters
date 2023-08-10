@@ -1,6 +1,9 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  '@astro-community/astro-embed-youtube':
+    specifier: ^0.4.0
+    version: 0.4.0(astro@2.5.0)
   '@astrojs/mdx':
     specifier: ^0.19.1
     version: 0.19.1(astro@2.5.0)(rollup@3.22.0)
@@ -54,6 +57,15 @@ packages:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.3
       '@jridgewell/trace-mapping': 0.3.18
+    dev: false
+
+  /@astro-community/astro-embed-youtube@0.4.0(astro@2.5.0):
+    resolution: {integrity: sha512-rUEuZD5FTLaRaZFfmQO1JkywDNqZ8AqniG8qnSxNIj9qMS0wqSG/zcDkWpYlyOW3EL07aOBnDfaZSr3wwCy4wA==}
+    peerDependencies:
+      astro: ^2.0.0
+    dependencies:
+      astro: 2.5.0
+      lite-youtube-embed: 0.2.0
     dev: false
 
   /@astrojs/compiler@1.4.2:
@@ -2247,6 +2259,10 @@ packages:
 
   /lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
+    dev: false
+
+  /lite-youtube-embed@0.2.0:
+    resolution: {integrity: sha512-XXXAk5sbvtjjwbie3XG+6HppgTm1HTGL/Uk9z9NkJH53o7puZLur434heHzAjkS60hZB3vT4ls25zl5rMiX4EA==}
     dev: false
 
   /load-yaml-file@0.2.0:
