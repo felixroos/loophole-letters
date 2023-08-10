@@ -5,7 +5,7 @@ import PostList from "../components/PostList.astro";
 import Layout from "../components/Layout.astro";
 
 const posts = (await getCollection("blog")).sort((a, b) =>
-  compareDesc(b.data.date, a.data.date)
+  compareDesc(a.data.date, b.data.date)
 );
 ---
 
