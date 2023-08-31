@@ -1,0 +1,263 @@
+---
+title: "Code Reading Session: ZZFX minimal Web Audio Synth"
+description: "How <1KB of JS code works as a 20 param synth"
+date: "2023-08-31"
+tags: ["code"]
+draft: true
+---
+
+import { Waveform } from "../../components/scope/Waveform.jsx";
+import { ZZFX } from "../../components/zzfx/ZZFX.jsx";
+import { BufferPlayer } from "../../components/zzfx/BufferPlayer.jsx";
+
+# ZZFX
+
+Let's look at [ZZFX](https://github.com/KilledByAPixel/ZzFX), a "Tiny sound generator with 20 controllable parameters", originally developed for size limited games.
+
+The sound generation is very minimal but a very interesting read, which is why I want to pick it apart to better understand it.
+
+This is the whole (minified) code:
+
+{/* prettier-ignore */}
+```js
+'use strict';let zzfx,zzfxV,zzfxX
+// ZzFXMicro - Zuper Zmall Zound Zynth - v1.2.0 by Frank Force ~ 880 bytes
+zzfxV=.3    // volume
+zzfx=       // play sound
+(p=1,k=.05,b=220,e=0,r=0,t=.1,q=0,D=1,u=0,y=0,v=0,z=0,l=0,E=0,A=0,F=0,c=0,w=1,m=
+0,B=0,M=Math,R=44100,d=2*M.PI,G=u*=500*d/R/R,C=b*=(1-k+2*k*M.random(k=[]))*d/R,g
+=0,H=0,a=0,n=1,I=0,J=0,f=0,x,h)=>{e=R*e+9;m*=R;r*=R;t*=R;c*=R;y*=500*d/R**3;A*=d
+/R;v*=d/R;z*=R;l=R*l|0;for(h=e+m+r+t+c|0;a<h;k[a++]=f)++J%(100*F|0)||(f=q?1<q?2<
+q?3<q?M.sin((g%d)**3):M.max(M.min(M.tan(g),1),-1):1-(2*g/d%2+2)%2:1-4*M.abs(M.
+round(g/d)-g/d):M.sin(g),f=(l?1-B+B*M.sin(d*a/l):1)*(0<f?1:-1)*M.abs(f)**D*zzfxV
+*p*(a<e?a/e:a<e+m?1-(a-e)/m*(1-w):a<e+m+r?w:a<h-c?(h-a-c)/t*w:0),f=c?f/2+(c>a?0:
+(a<h-c?1:(h-a)/c)*k[a-c|0]/2):f),x=(b+=u+=y)*M.cos(A*H++),g+=x-x*E*(1-1E9*(M.sin
+(a)+1)%2),n&&++n>z&&(b+=v,C+=v,n=0),!l||++I%l||(b=C,u=G,n||=1);p=zzfxX.
+createBuffer(1,h,R);p.getChannelData(0).set(k);b=zzfxX.createBufferSource();b.
+buffer=p;b.connect(zzfxX.destination);b.start();return b};zzfxX=new AudioContext;
+```
+
+You can copy paste that code into the browser console! Then copy run this in the console afterwards:
+
+<ZZFX
+  params={[
+    1.02, 0.05, 336, 0.03, 0.14, 0.3, 2, 1.78, 0, 0, 0, 0, 0, 1, 0, 0.6, 0,
+    0.31, 0.15, 0.07,
+  ]}
+  client:only="react"
+/>
+
+Of course, you can also just hit play... That `zzfx` function call is all you need to play a sound with 20 params.
+
+There is a handy [sound design tool](https://killedbyapixel.github.io/ZzFX/) where the resulting code can be copied at the bottom of the page.
+
+Some more examples:
+
+{/* prettier-ignore */}
+<ZZFX params={[
+  1,.05,252,.04,.21,.33,1,.52,9.8,0,0,0,.2,0,0,0,0,.99,.25,0
+]} client:only="react"/>
+
+{/* prettier-ignore */}
+<ZZFX params={[
+  2.03,.05,687,.01,.1,.4,1,1.34,0,0,0,0,.12,0,0,.1,.14,.61,.13,.14
+]} client:only="react"/>
+
+## Params
+
+The general idea is to turn the list of params into a list of samples. The params are:
+
+```plaintext
+volume
+randomness
+frequency
+attack
+sustain
+release
+shape
+shapeCurve
+slide
+deltaSlide
+pitchJump
+pitchJumpTime
+repeatTime
+noise
+modulation
+bitCrush
+delay
+sustainVolume
+decay
+tremolo
+```
+
+Instead of just pasting the whole code, let's try to build the function from scratch.
+
+## Buffers
+
+Before we make sounds, let's quickly talk about buffers.
+A buffer is just a list of samples, which are amplitude values between -1 and 1.
+In the end, it controls how the speaker moves when the buffer is passed to the DAC (digital to analog converter).
+The value 0 corresponds to the resting position, -1 and 1 are the outer extremes.
+How many samples are played per seconds depends on the sampleRate, which is typically 44100Hz (sometimes 48000Hz).
+For example, a buffer containing 44100 numbers will last 1 second with a sample rate of 44,1kHz.
+
+## First Beep
+
+Let's generate a sine wave:
+
+<BufferPlayer value="({i}) => sin(i/20)" client:only />
+
+The text field above defines an expression that is evaluated for each sample number `i`.
+The length is only 0.2 seconds or 0.2\*44100 = 8820 samples.
+
+To generate the list of samples, we can do
+
+```js
+let ac = new AudioContext();
+let seconds = 0.2;
+let samples = Array.from({ length: ac.sampleRate * seconds }, (_, i) =>
+  fn({ i })
+);
+```
+
+... where `fn` is the function we define in the input field. The object will be of use later..
+
+To turn that list of samples into sound, we have to use the Web Audio API:
+
+```js
+const buffer = ac.createBuffer(1, samples.length, ac.sampleRate);
+const source = ac.createBufferSource();
+
+buffer.getChannelData(0).set(samples); // write samples to buffer
+source.buffer = buffer; // assign buffer to buffersource
+source.connect(ac.destination); // connect source to output
+source.start(); // play!
+```
+
+## Frequency
+
+We can implement the first param: frequency.
+It works like this:
+
+<BufferPlayer value="({i}) => sin(220 * i/sampleRate * PI2)" client:only />
+
+1. `sin(n * PI2)` gives us the beginning of each sine wave cycle for whole numbers of n
+2. `i/sampleRate` scales the sample number to seconds
+3. so `sin(i/sampleRate * PI2)` would give use a 1Hz sine wave
+4. then we just multiply by the desired frequency
+
+To not repeat the above calculation all the time, let's add a new param called `t = frequency * i/sampleRate * PI2` to our function:
+
+<BufferPlayer value="({t}) => sin(t)" client:only />
+
+Let's stick to 220 for out frequency for now.
+
+## Wave Shapes
+
+Instead of a sine wave, we can also use other shapes. This is how ZZFX is calculating the saw:
+
+<BufferPlayer
+  value={`({t}) => 1 - (((((2 * t) / PI2) % 2) + 2) % 2)`}
+  client:only
+/>
+
+... and the triangle:
+
+<BufferPlayer
+  value={`({t}) => 1 - 4 * abs(round(t / PI2) - t / PI2)`}
+  client:only
+/>
+
+... and the tan:
+
+<BufferPlayer
+  value={`({t}) => Math.max(Math.min(Math.tan(t), 1), -1)`}
+  client:only
+/>
+
+... and noise:
+
+<BufferPlayer value={`({t}) => Math.sin((t % PI2) ** 3)`} client:only />
+
+### Shape Curve
+
+The waveform can be shaped liek this:
+
+<BufferPlayer
+  value={`({t}) => {
+  let shapeCurve = 2;
+  let s = 1 - (((((2 * t) / PI2) % 2) + 2) % 2);
+  return sign(s) * abs(s) ** shapeCurve;
+}`}
+  client:only
+/>
+
+- 0 gives a square wave
+- 1 keeps it as is
+- \>1 makes it increasingly more pointy
+
+### Envelope
+
+The envelope controls the volume over time.
+Let's start with a simple AD envelope:
+
+<BufferPlayer
+  value={`let attack = 0.1 * sampleRate;
+let decay = 0.1 * sampleRate;
+({ i, t }) => {
+  let v;
+  if (i < attack) {
+    v = i / attack;
+  } else if (i < attack + decay) {
+    v = 1 - (i - attack) / decay;
+  } else {
+    v = 0;
+  }
+  return Math.sin(t) * v;
+}`}
+  client:only
+/>
+
+Full envelope:
+
+<BufferPlayer
+  value={`let attack = 0.1 * sampleRate;
+let decay = 0.1 * sampleRate;
+let sustain = 0.1 * sampleRate;
+let release = 0.1 * sampleRate;
+let sustainVolume = .8;
+let delay = .1;
+let length = (attack + decay + sustain + release + delay) | 0;
+({ i, t }) => {
+  const v = i < attack
+    ? i / attack // attack
+    : i < attack + decay // decay
+    ? 1 - ((i - attack) / decay) * (1 - sustainVolume) // decay falloff
+    : i < attack + decay + sustain // sustain
+    ? sustainVolume // sustain volume
+    : i < length - delay // release
+    ? ((length - i - delay) / release) * // release falloff
+      sustainVolume // release volume
+    : 0; // post release
+    return Math.sin(t) \* v;
+}`}
+  seconds={0.5}
+  client:only
+/>
+
+Delay does not do anything yet, but it is important to consider here too..
+
+### Pitch Slide
+
+Let's continue with pitch sliding, because it'll reveal a problem with our little frequency calculation.
+
+<BufferPlayer
+  value={`let f = 220;
+({i}) => {
+  f+=0.01;
+  return sin(f * i/sampleRate * PI2)
+}
+`}
+  client:only
+/>
+### Shape
