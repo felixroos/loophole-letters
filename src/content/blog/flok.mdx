@@ -1,0 +1,38 @@
+---
+title: "Code Reading Session: Flok"
+description: "Let's check out Flok"
+date: "2023-08-10"
+tags: ["code"]
+draft: true
+---
+
+- reading flok-next branch (10.08.2023)
+
+- https://github.com/munshkr/flok#readme
+  - Strudel is not on the README.md list (low hanging PR..)
+  - Node 14 recommended might be out of date
+  - install: ran `npm install -g flok-repl flok-web` then `flok-web`: works fine!
+  - multiple strudel instances don't work without workaround...
+  - tried connecting to my local server from another computer, but it seemed the ip did not work :-/ likely a problem with my network
+- running `npm i` worked, `Lerna (powered by Nx)` caught my eye..
+- uses npm workspaces, entry package is `web`, let's see `web/package.json`
+  - `codemirror` 6! + `react-codemirror` (like strudel)
+  - contains `strudel` + `hydra-synth` + `p5`
+  - has its own scoped packages under `@flok-editor/*`
+  - bundle / dev with `vite`
+  - frontend: `react` + `radix-ui` + `class-variance-authority` (?) + `cmdk` + `lucide-react` (icons) + `tailwind-merge` (?) + `tailwindcss`
+  - backend: `express` + `commander` + `yjs` + `ws`
+- entry file is `./bin/flok-web.js`
+  - wires up `commander` cli options and calls `startServer` of `server.js`
+- `./server.js`:
+  - creates a vite server via `./vite-express.js`, probably using [vites js api](https://vitejs.dev/guide/api-javascript.html)
+  - the vite server is wrapped in `withFlokServer` of `@flok-editor/server-middleware`, which seems to wire the yjs server side
+  - the rest is probably just default
+
+## questions
+
+- why is it needed to use a custom vite server? 
+  - why not use a default vite server for dev / just a static file server for prod + use a separate server for the networking?
+
+
+look at `@flok-editor/*`
