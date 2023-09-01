@@ -1,23 +1,24 @@
 import { createEffect, createSignal } from "solid-js";
 import { Waveform } from "../scope/Waveform";
 
+export function playSamples(ac, samples) {
+  const buffer = ac.createBuffer(1, samples.length, ac.sampleRate),
+    source = ac.createBufferSource();
+
+  buffer.getChannelData(0).set(samples);
+  source.buffer = buffer;
+  const g = ac.createGain();
+  g.gain.value = 0.25;
+  source.connect(g);
+  g.connect(ac.destination);
+  source.start();
+  return source;
+}
+
 export function BufferPlayer(props) {
   const [value, setValue] = createSignal(props.value);
 
   const ac = new AudioContext();
-  function playSamples(samples) {
-    const buffer = ac.createBuffer(1, samples.length, ac.sampleRate),
-      source = ac.createBufferSource();
-
-    buffer.getChannelData(0).set(samples);
-    source.buffer = buffer;
-    const g = ac.createGain();
-    g.gain.value = 0.25;
-    source.connect(g);
-    g.connect(ac.destination);
-    source.start();
-    return source;
-  }
 
   const samples = () => {
     const seconds = props.seconds || 0.25;
@@ -51,7 +52,7 @@ export function BufferPlayer(props) {
         <button
           class="bg-gray-800 text-white rounded-md h-12 px-2"
           onClick={async () => {
-            playSamples(samples());
+            playSamples(ac, samples());
           }}
         >
           PLAY

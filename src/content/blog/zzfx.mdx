@@ -10,6 +10,7 @@ import { Waveform } from "../../components/scope/Waveform.jsx";
 import { ZZFX } from "../../components/zzfx/ZZFX.jsx";
 import { BufferPlayer } from "../../components/zzfx/BufferPlayer.jsx";
 import { Worklet } from "../../components/worklets/Worklet.jsx";
+import { ByteBeat } from "../../components/zzfx/ByteBeat.jsx";
 
 # ZZFX
 
@@ -275,7 +276,6 @@ function sample({ s,h,r,i,p }) {
 `}
   client:only
 />
-
 variables:
 
 - s = `this` of audio worklet
@@ -283,6 +283,15 @@ variables:
 - r = inverse sample rate / 1Hz in samples
 - i = block sample number (0 - 128)
 - p = getter for params (not used atm)
+
+## ByteBeat
+
+This is a neat transition to bytebeat, which is a simplified version of the above approach..
+Here is a simple bytebeat editor that prerenders a sample of 10s:
+
+<ByteBeat value={`((t >> 10) & 42) * t`} client:only />
+
+Hit ctrl+enter to update / replay.
 
 ## Links
 
