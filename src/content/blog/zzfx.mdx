@@ -293,7 +293,7 @@ Here is a simple bytebeat editor that prerenders a sample of 10s:
 <ByteBeat
   value={`// ryg 2011-10-10
 ((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)`}
-  hz={8000}
+  hz={44000}
   client:only
 />
 
@@ -303,7 +303,7 @@ Here is a simple bytebeat editor that prerenders a sample of 10s:
 
 (t>>10^t>>11)%5*((t>>14&3^t>>15&1)+1)*t%99+((3+(t>>14&3)-(t>>16&1))/3\*t%99&64)`}
 client:only
-
+hz={8000}
 />
 
 Hit ctrl+enter to update / replay.
