@@ -9,6 +9,7 @@ draft: true
 import { Waveform } from "../../components/scope/Waveform.jsx";
 import { ZZFX } from "../../components/zzfx/ZZFX.jsx";
 import { BufferPlayer } from "../../components/zzfx/BufferPlayer.jsx";
+import { Worklet } from "../../components/worklets/Worklet.jsx";
 
 # ZZFX
 
@@ -108,7 +109,7 @@ Let's generate a sine wave:
 <BufferPlayer value="({i}) => sin(i/20)" client:only />
 
 The text field above defines an expression that is evaluated for each sample number `i`.
-The length is only 0.2 seconds or 0.2\*44100 = 8820 samples.
+The length is only 0.2 seconds or 0.2\*44100 = 8820 samples. It is so short to let our eyes see each sample.
 
 To generate the list of samples, we can do
 
@@ -260,4 +261,29 @@ Let's continue with pitch sliding, because it'll reveal a problem with our littl
 `}
   client:only
 />
-### Shape
+
+## Worklets
+
+Below is a WIP for a "live coding" Audio Worklet, where you can write a function that runs for every sample,
+which is similar to how [bytebeat](https://greggman.com/downloads/examples/html5bytebeat/html5bytebeat.html) works.
+
+<Worklet
+  value={`
+function sample({ s,h,r,i,p }) {
+  return (s.p+=r*110)%1 / 10;
+}
+`}
+  client:only
+/>
+
+variables:
+
+- s = `this` of audio worklet
+- h = 1Hz in radians
+- r = inverse sample rate / 1Hz in samples
+- i = block sample number (0 - 128)
+- p = getter for params (not used atm)
+
+## Links
+
+- https://jsgist.org/?src=5c0429e50839b546a38ce9dbb66c2ab3

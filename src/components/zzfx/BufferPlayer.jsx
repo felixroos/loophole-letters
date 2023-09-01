@@ -11,7 +11,10 @@ export function BufferPlayer(props) {
 
     buffer.getChannelData(0).set(samples);
     source.buffer = buffer;
-    source.connect(ac.destination);
+    const g = ac.createGain();
+    g.gain.value = 0.25;
+    source.connect(g);
+    g.connect(ac.destination);
     source.start();
     return source;
   }
