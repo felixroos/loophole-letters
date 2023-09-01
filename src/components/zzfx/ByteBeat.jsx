@@ -14,7 +14,7 @@ export function ByteBeat(props) {
     const fn = `(t) => ${value()}`;
     console.log(fn);
     const byteBeat = eval(fn);
-    let srcSampleRate = 5000;
+    let srcSampleRate = props.hz || 8000;
     let dstSampleRate = ac.sampleRate;
 
     const floatbeat = (i) =>

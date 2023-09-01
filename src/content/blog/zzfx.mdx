@@ -290,9 +290,22 @@ This is a neat transition to bytebeat, which is a simplified version of the abov
 Here is a simple bytebeat editor that prerenders a sample of 10s:
 
 <ByteBeat value={`((t >> 10) & 42) * t`} client:only />
+<ByteBeat
+  value={`// ryg 2011-10-10
+((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)`}
+  hz={8000}
+  client:only
+/>
+
+<ByteBeat  value={`// Fractalized Past
+// by: lhphr
+// from: https://dollchan.net/btb/res/3.html#69
+
+(t>>10^t>>11)%5*((t>>14&3^t>>15&1)+1)*t%99+((3+(t>>14&3)-(t>>16&1))/3\*t%99&64)`}
+client:only
+
+/>
 
 Hit ctrl+enter to update / replay.
 
-## Links
-
-- https://jsgist.org/?src=5c0429e50839b546a38ce9dbb66c2ab3
+Check out [bytbeat page](https://greggman.com/downloads/examples/html5bytebeat/html5bytebeat.html) for more examples.
