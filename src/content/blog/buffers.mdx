@@ -3,7 +3,6 @@ title: Making Music with Buffers
 description: Getting to the Bottom of Digital Audio
 date: "2023-09-02"
 tags: ["code"]
-draft: true
 ---
 
 import { Waveform } from "../../components/scope/Waveform.jsx";
@@ -13,6 +12,8 @@ import { Worklet } from "../../components/worklets/Worklet.jsx";
 import { ByteBeat } from "../../components/zzfx/ByteBeat.jsx";
 
 Let's talk about how you can make music with a bunch of numbers!
+So far, I've only worked with the Web Audio API, which abstracts the sound synthesis into pluggable objects.
+Today I want to go a little deeper and look at a lower level of digital audio synthesis: buffers.
 
 ## Digital Audio in a nutshell
 
@@ -120,40 +121,163 @@ const square = (f) => Math.sign(1 - 2 * ((f * s) % 1));
 const tri = (f) => 1 - 4 * Math.abs(Math.round(s * f) - s * f);
 ```
 
-<BufferPlayer2 value={`saw(220)`} client:only />
+<BufferPlayer2 value={`tri(220)`} client:only />
 
 ## Envelopes
 
+We can add a linear envelope by multiplying with a linear function:
+
 Attack:
 
-<BufferPlayer2 value={`saw(220) * (s<.2 ?s/.2 : 1)`} client:only />
+<BufferPlayer2 value={`tri(220) * (s<.2 ?s/.2 : 1)`} client:only />
 
-Decay:
+With some conditional logic, we can create a whole ADSR envelope:
 
 <BufferPlayer2
-  value={`saw(220) * (s<.1 ? 1 : s<.2 ? 1-(s-.1)/.1 : 0)`}
+  rows={12}
+  seconds={0.5}
+  value={`(() => {
+    let lerp = (a, b, n) => n * (b - a) + a;
+    let attack = .1, decay = .1, sustain = .5, sustainTime = .1, release=.2;
+    let gain = 0;
+    if(s < attack) {
+      gain = s / attack;
+    } else if(s < attack + decay) {
+      gain = lerp(1, sustain, (s - attack)/decay);
+    } else if(s < attack + decay + sustainTime) {
+      gain = sustain;
+    } else if(s < attack + decay + sustainTime + release) {
+      gain = lerp(sustain, 0, (s - attack - decay - sustainTime)/release);
+    }
+    return tri(220) * gain;
+})()`}
   client:only
 />
 
-Attack + Decay:
+Let's abstract this into a function:
+
+```js
+function adsr(a = 0.001, d = 0.001, sl = 1, st = 0.1, r = 0.001) {
+  let ramp = (a, b, n) => n * (b - a) + a;
+  let s = t / sr;
+  let gain = 0;
+  if (s < a) {
+    gain = s / a;
+  } else if (s < a + d) {
+    gain = ramp(1, sl, (s - a) / d);
+  } else if (s < a + d + st) {
+    gain = sl;
+  } else if (s < a + d + st + r) {
+    gain = ramp(sl, 0, (s - a - d - st) / r);
+  }
+  return gain;
+}
+```
+
+... and use it:
 
 <BufferPlayer2
-  value={`saw(220) * (s<.1 ?s/.1 : 1) * (s<.1 ? 1 : s<.2 ? 1-(s-.1)/.1 : 0)`}
+  seconds={0.5}
+  value={`tri(220) * adsr(.1,.1,.5,.1, .1)`}
+  client:only
+/>
+
+We can abstract it a little more into a variable length line segmentation function:
+
+```js
+// api idea from csound
+function linsegs(...args) {
+  let [v, ...rest] = args;
+  let a = 0;
+  let lerp = (a, b, n) => n * (b - a) + a;
+  while (a < rest.length) {
+    const dur = rest[a];
+    const next = rest[a + 1];
+    if (s < dur) {
+      return lerp(v, next, s / dur);
+    }
+    s -= dur;
+    v = next;
+    a += 2;
+  }
+  return args[args.length - 1];
+}
+```
+
+A simple AD envelope could be written like this:
+
+<BufferPlayer2
+  value={`saw(220) * linseg(0,.02,1,.2,0)`}
+  seconds={0.3}
   client:only
 />
 
 ## Vibrato & FM
 
-<BufferPlayer2 seconds={2} value={`sin(220 * c + sin(c*4)/2 )`} client:only />
+<BufferPlayer2 seconds={1} value={`sin(220 * c + sin(c*4)/2)`} client:only />
 
 FM is like vibrato but faster!
 
-<BufferPlayer2 seconds={2} value={`sin(220 * c + sin(c*220)*2 )`} client:only />
+<BufferPlayer2 seconds={1} value={`sin(220 * c + sin(c*220)*2)`} client:only />
 
 more bell-like:
 
-<BufferPlayer2 seconds={2} value={`sin(220 * c + sin(c*600)*4)`} client:only />
+<BufferPlayer2 seconds={1} value={`sin(220 * c + sin(c*600)*4)`} client:only />
 
 ## Tremolo
 
-<BufferPlayer2 seconds={2} value={`sin(440 * c) *  sin(c*4)`} client:only />
+<BufferPlayer2 seconds={1} value={`sin(440 * c) *  sin(c*4)`} client:only />
+
+## Writing a tune
+
+We could define multiple notes like this:
+
+<BufferPlayer2
+  seconds={3}
+  rows={12}
+  value={`tri(440) * linseg(0,.0, 0, .01, 1, .1,1,.05,0)
++ tri(440) * linseg(0,.2, 0, .01, 1, .1,1,.05,0)
++ tri(390) * linseg(0,.4, 0, .01, 1, .1, 1,.05,0)
++ tri(440) * linseg(0,.6, 0, .01, 1, .1, 1,.05,0)
++ tri(330) * linseg(0,1, 0, .01, 1, .1, 1,.05,0)
++ tri(330) * linseg(0,1.4, 0, .01, 1, .1, 1,.05,0)
++ tri(440) * linseg(0,1.6, 0, .01, 1, .1, 1,.05,0)
++ tri(586) * linseg(0,1.8, 0, .01, 1, .1, 1,.05,0)
++ tri(550) * linseg(0,2, 0, .01, 1, .1, 1,.05,0)
++ tri(440) * linseg(0,2.2, 0, .01, 1, .1, 1,.05,0)`}
+  client:only
+/>
+
+Let's write a simple helper for that:
+
+```js
+function note(freq, time, duration) {
+  return (
+    oscillator("triangle", freq) *
+    linseg(0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
+  );
+}
+```
+
+<BufferPlayer2
+  seconds={3}
+  rows={12}
+  value={`note(440, .0, .1)
++ note(440, .2, .1)
++ note(390, .4, .1)
++ note(440, .6, .1)
++ note(330, 1, .1)
++ note(330, 1.4, .1)
++ note(440, 1.6, .1)
++ note(586, 1.8, .1)
++ note(550, 2, .1)
++ note(440, 2.2, .1)`}
+  client:only
+/>
+
+At this point, we could already synthesize something like a midi track with just a bunch of mathematical functions!
+
+I want to make a cut here, but I'll probably dive deeper into this topic.
+So far, we've only been pregenerating all the things. It would be very handy if all of this could run in real time, using AudioWorklets.
+I am also curious if I can reimplement ZZFX as an AudioWorklet.
+Until next time!

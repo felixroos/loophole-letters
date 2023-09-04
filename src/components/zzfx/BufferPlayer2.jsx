@@ -23,10 +23,65 @@ function oscillator(shape, f, sr, t) {
     sine: (f, t) => Math.sin(f * c(t)),
     sawtooth: (f, t) => 1 - 2 * ((f * s(t)) % 1),
     square: (f, t) => Math.sign(1 - 2 * ((f * s(t)) % 1)),
-    triangle: (f, t) =>
-      1 - 4 * Math.abs(Math.round(s(t) * f) - s(t) * f),
+    triangle: (f, t) => 1 - 4 * Math.abs(Math.round(s(t) * f) - s(t) * f),
   };
   return shapes[shape](f, t);
+}
+
+function adsrEnvelope(
+  a = 0.001,
+  d = 0.001,
+  sl = 1,
+  st = 0.1,
+  r = 0.001,
+  t,
+  sr
+) {
+  let lerp = (a, b, n) => n * (b - a) + a;
+  let s = t / sr;
+  if (s < a) {
+    return s / a;
+  }
+  if (s < a + d) {
+    return lerp(1, sl, (s - a) / d);
+  }
+  if (s < a + d + st) {
+    return sl;
+  }
+  if (s < a + d + st + r) {
+    return lerp(sl, 0, (s - a - d - st) / r);
+  }
+  return 0;
+}
+
+// api idea from csound
+function linsegs(...args) {
+  let t = args[0];
+  let v = args[1];
+  let a = 2;
+  let lerp = (a, b, n) => n * (b - a) + a;
+  while (a < args.length) {
+    const dur = args[a];
+    const next = args[a + 1];
+    if (t < dur) {
+      return lerp(v, next, t / dur);
+    }
+    t -= dur;
+    v = next;
+    a += 2;
+  }
+  return args[args.length - 1];
+}
+
+function fadeInOut(t, fadeTime, duration) {
+  return linsegs(t, 0, fadeTime, 1, duration - fadeTime * 2, 1, fadeTime, 0);
+}
+
+function scheduleNote(freq, time, duration, sr, t) {
+  return (
+    oscillator("triangle", freq, sr, t) *
+    linsegs(t / sr, 0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
+  );
 }
 
 export function BufferPlayer2(props) {
@@ -64,18 +119,25 @@ export function BufferPlayer2(props) {
     
     (t) => {
       let osc = (wave, f) => oscillator(wave, f, ac.sampleRate, t);
+      let adsr = (a,d,sl,st,r) => adsrEnvelope(a,d,sl,st,r,t,ac.sampleRate);
+      let linseg = (v,...args) => linsegs(t/ac.sampleRate, v,...args);
       let sine = (f) => osc('sine', f);
       let tri = (f) => osc('triangle', f);
       let saw = (f) => osc('sawtooth', f);
+      let note = (f,time,duration) => scheduleNote(f,time,duration,ac.sampleRate,t)
       let square = (f) => osc('square', f);
+
       let s = t/sampleRate;
       let c = s * Math.PI * 2;
-      return ${value()}
+      return ${String(value()).trim()}
     }`);
     if (typeof fn !== "function") {
       throw new Error("expected a function!");
     }
-    return ac.generateBuffer(fn, seconds);
+    return ac.generateBuffer(
+      (t) => fn(t) * fadeInOut(t / ac.sampleRate, 0.001, seconds),
+      seconds
+    );
   };
 
   const run = () => ac.playBuffer(buffer());
