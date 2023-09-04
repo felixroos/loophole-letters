@@ -28,6 +28,13 @@ function oscillator(shape, f, sr, t) {
   return shapes[shape](f, t);
 }
 
+function scheduleNote(freq, time, duration, sr, t) {
+  return (
+    oscillator("triangle", freq, sr, t) *
+    linsegs(t / sr, 0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
+  );
+}
+
 function adsrEnvelope(
   a = 0.001,
   d = 0.001,
@@ -77,6 +84,15 @@ function fadeInOut(t, fadeTime, duration) {
   return linsegs(t, 0, fadeTime, 1, duration - fadeTime * 2, 1, fadeTime, 0);
 }
 
+if (typeof window !== "undefined") {
+  Object.assign(window, {
+    oscillator,
+    adsrEnvelope,
+    linsegs,
+    scheduleNote,
+  });
+}
+
 export function BufferPlayer2(props) {
   const [value, setValue] = createSignal(props.value);
 
@@ -102,12 +118,6 @@ export function BufferPlayer2(props) {
   const buffer = () => {
     const seconds = props.seconds || 0.25;
 
-    function scheduleNote(freq, time, duration, sr, t) {
-      return (
-        oscillator("triangle", freq, sr, t) *
-        linsegs(t / sr, 0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
-      );
-    }
     let fn = eval(`
     let sampleRate = ${ac.sampleRate};
     let PI2 = Math.PI*2;
