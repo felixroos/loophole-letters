@@ -77,13 +77,6 @@ function fadeInOut(t, fadeTime, duration) {
   return linsegs(t, 0, fadeTime, 1, duration - fadeTime * 2, 1, fadeTime, 0);
 }
 
-function scheduleNote(freq, time, duration, sr, t) {
-  return (
-    oscillator("triangle", freq, sr, t) *
-    linsegs(t / sr, 0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
-  );
-}
-
 export function BufferPlayer2(props) {
   const [value, setValue] = createSignal(props.value);
 
@@ -108,6 +101,13 @@ export function BufferPlayer2(props) {
 
   const buffer = () => {
     const seconds = props.seconds || 0.25;
+
+    function scheduleNote(freq, time, duration, sr, t) {
+      return (
+        oscillator("triangle", freq, sr, t) *
+        linsegs(t / sr, 0, time, 0, 0.01, 1, duration, 1, 0.05, 0)
+      );
+    }
     let fn = eval(`
     let sampleRate = ${ac.sampleRate};
     let PI2 = Math.PI*2;
