@@ -14,33 +14,42 @@ async function loadClapBuffer(ac) {
 const loadFaustReverb = async (ac) => {
   const module = await WebAssembly.compileStreaming(fetch(dspModuleUrl));
   const generator = new FaustMonoDspGenerator();
-  return generator.createNode(ac, "FaustMonoDSP", {
+  const node = await generator.createNode(ac, "FaustMonoDSP", {
     module,
     json: JSON.stringify(dspMeta),
   });
+  node.connect(ac.destination);
+  return node;
 };
 
-let audioContext, clapBuffer, reverb;
+let ac, clapBuffer, reverb;
 
 async function dry() {
-  const ac = audioContext || new AudioContext();
+  ac = ac || new AudioContext();
 
   const source = ac.createBufferSource();
-  source.buffer = clapBuffer || (await loadClapBuffer(ac));
+  if (!clapBuffer) {
+    clapBuffer = loadClapBuffer(ac);
+  }
+  source.buffer = await clapBuffer;
 
   source.connect(ac.destination);
   source.start();
 }
 
 async function wet() {
-  const ac = audioContext || new AudioContext();
+  ac = ac || new AudioContext();
 
   const source = ac.createBufferSource();
-  source.buffer = clapBuffer || (await loadClapBuffer(ac));
-  const faustNode = reverb ? reverb : await loadFaustReverb(ac);
+  if (!clapBuffer) {
+    clapBuffer = loadClapBuffer(ac);
+  }
+  source.buffer = await clapBuffer;
+  if (!reverb) {
+    reverb = loadFaustReverb(ac);
+  }
 
-  source.connect(faustNode);
-  faustNode.connect(ac.destination);
+  source.connect(await reverb);
   source.start();
 }
 
