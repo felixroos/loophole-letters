@@ -56,8 +56,18 @@ async function wet() {
 export function FaustReverb() {
   return (
     <div class="flex space-x-2">
-      <button onClick={() => dry()}>dry clap</button>
-      <button onClick={() => wet()}>wet clap</button>
+      <button
+        class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
+        onClick={() => dry()}
+      >
+        dry clap
+      </button>
+      <button
+        class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
+        onClick={() => wet()}
+      >
+        wet clap
+      </button>
     </div>
   );
 }

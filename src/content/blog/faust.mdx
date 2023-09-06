@@ -6,8 +6,65 @@ tags: ["code"]
 draft: true
 ---
 
-Let's play with FAUST.
+Let's play with FAUST on the web. The repo [@grame/faustwasm](https://www.npmjs.com/package/@grame/faustwasm) has different export options. I chose:
+
+```sh
+node scripts/faust2wasm.js test/rev.dsp test/out -standalone
+```
+
+This generates [this page](/faust-reverb/index.html), which loads `dspModule.wasm` for the audio processing.
+I was able to condense a quick setup to this:
+
+```js
+import dspModuleUrl from "./reverb/dspModule.wasm?url";
+import dspMeta from "./reverb/dspMeta.json";
+import { FaustMonoDspGenerator } from "@grame/faustwasm";
+
+const loadFaustReverb = async (ac) => {
+  const module = await WebAssembly.compileStreaming(fetch(dspModuleUrl));
+  const generator = new FaustMonoDspGenerator();
+  const node = await generator.createNode(ac, "FaustMonoDSP", {
+    module,
+    json: JSON.stringify(dspMeta),
+  });
+  node.connect(ac.destination);
+  return node;
+};
+```
+
+(This will only work on vite, but replacing the dspModule path with a public path should also work anywhere else)
+
+To test the reverb, let's load a test sample:
+
+```js
+async function loadClapBuffer(ac) {
+  const res = await fetch(
+    "https://raw.githubusercontent.com/tidalcycles/Dirt-Samples/master/cp/HANDCLP0.wav"
+  );
+  const buffer = await res.arrayBuffer();
+  const audioBuffer = await ac.decodeAudioData(buffer);
+  return audioBuffer;
+}
+```
+
+Now let's connect it together:
+
+```js
+async function play() {
+  const ac = new AudioContext();
+  const reverb = await loadFaustReverb(ac);
+
+  const source = ac.createBufferSource();
+  source.buffer = await loadClapBuffer(ac);
+  source.connect(reverb);
+  source.start();
+}
+```
 
 import { FaustReverb } from "../../components/faust/Faust.jsx";
 
+This is how it sounds like:
+
 <FaustReverb client:only />
+
+The next question would be how the parameters can be controlled from the outside..
