@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+// import { createSignal } from "solid-js";
 import dspModuleUrl from "./reverb/dspModule.wasm?url";
 import dspMeta from "./reverb/dspMeta.json";
 import { FaustMonoDspGenerator } from "@grame/faustwasm";
@@ -60,13 +60,13 @@ const getParams = (faustNode) =>
   );
 
 export function FaustReverb() {
-  ac = ac || new AudioContext();
+  /* ac = ac || new AudioContext();
   const [params, setParams] = createSignal({});
 
   loadFaustReverb(ac).then((node) => {
     reverb = node;
     setParams(getParams(node));
-  });
+  }); */
   return (
     <div>
       {" "}
