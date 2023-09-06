@@ -1,6 +1,6 @@
 ---
-title: Trying FAUST
-description: "testing faust"
+title: Trying FAUST on the Web
+description: ""
 date: "2023-09-06"
 tags: ["code"]
 draft: true
@@ -13,6 +13,11 @@ node scripts/faust2wasm.js test/rev.dsp test/out -standalone
 ```
 
 This generates [this page](/faust-reverb/index.html), which loads `dspModule.wasm` for the audio processing.
+
+It might be really handy if the package.json of faustwasm had a `bin` field, which would allow using the tool without cloning the repo, just by using npx.
+
+## Loading FAUST with Web Audio
+
 I was able to condense a quick setup to this:
 
 ```js
@@ -68,3 +73,35 @@ This is how it sounds like:
 <FaustReverb client:only />
 
 The next question would be how the parameters can be controlled from the outside..
+
+## Working With Params
+
+This is the API to work with params:
+
+```js
+const reverb = await loadFaustReverb(ac);
+const params = reverb.getParams();
+// ['/Freeverb/0x00/Damp', '/Freeverb/0x00/RoomSize', '/Freeverb/0x00/Stereo_Spread', '/Freeverb/Wet']
+const damp = reverb.getParamValue("/Freeverb/0x00/Damp"); // 0.5
+reverb.setParamValue("/Freeverb/0x00/Damp", 0.75);
+```
+
+We could convert params to an object like this:
+
+```js
+const getParams = (faustNode) =>
+  Object.fromEntries(
+    faustNode.getParams().map((key) => [key, faustNode.getParamValue(key)])
+  );
+console.log(getParams(reverb));
+/* 
+{ 
+  '/Freeverb/0x00/Damp': 0.5, 
+  '/Freeverb/0x00/RoomSize': 0.5, 
+  '/Freeverb/0x00/Stereo_Spread': 0.5, 
+  '/Freeverb/Wet': 0.33 
+}
+*/
+```
+
+... which should be enough to spin up a UI!

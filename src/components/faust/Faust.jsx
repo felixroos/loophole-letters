@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import dspModuleUrl from "./reverb/dspModule.wasm?url";
 import dspMeta from "./reverb/dspMeta.json";
 import { FaustMonoDspGenerator } from "@grame/faustwasm";
@@ -53,21 +54,41 @@ async function wet() {
   source.start();
 }
 
+const getParams = (faustNode) =>
+  Object.fromEntries(
+    faustNode.getParams().map((key) => [key, faustNode.getParamValue(key)])
+  );
+
 export function FaustReverb() {
+  ac = ac || new AudioContext();
+  const [params, setParams] = createSignal({});
+
+  loadFaustReverb(ac).then((node) => {
+    reverb = node;
+    setParams(getParams(node));
+  });
   return (
-    <div class="flex space-x-2">
-      <button
-        class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
-        onClick={() => dry()}
-      >
-        dry clap
-      </button>
-      <button
-        class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
-        onClick={() => wet()}
-      >
-        wet clap
-      </button>
+    <div>
+      {" "}
+      <div class="flex space-x-2">
+        <button
+          class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
+          onClick={() => dry()}
+        >
+          dry clap
+        </button>
+        <button
+          class="border border-gray-500 p-2 rounded-md hover:bg-blue-200"
+          onClick={() => wet()}
+        >
+          wet clap
+        </button>
+      </div>
+      {/* Object.entries(params()).map(([param, value]) => (
+        <p>
+          {param}: {value}
+        </p>
+      )) */}
     </div>
   );
 }
