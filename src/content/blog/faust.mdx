@@ -303,20 +303,18 @@ async function loadCompiler() {
   return new FaustCompiler(libFaust);
 }
 
-let compiler, ac, node;
+let compiler, generator, ac, node;
 
 async function compile(code) {
   compiler = compiler || (await loadCompiler());
   ac = ac || new AudioContext();
+  generator = generator || new FaustMonoDspGenerator();
 
-  const generator = new FaustMonoDspGenerator();
-  const name = "FaustCompile";
-  const argv = ["-I", "libraries/"];
   const compiled = await generator.compile(
     compiler,
-    name,
+    "FaustCompile",
     code,
-    argv.join(" ")
+    ["-I", "libraries/"].join(" ")
   );
 
   return generator.createNode(ac, "FaustMonoDSP", compiled.factory);
