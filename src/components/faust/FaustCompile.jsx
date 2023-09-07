@@ -6,9 +6,15 @@ import {
   FaustCompiler,
 } from "@grame/faustwasm";
 import libfaustwasm from "@grame/faustwasm/libfaust-wasm/libfaust-wasm.js?url";
+import libfaustwasmdata from "@grame/faustwasm/libfaust-wasm/libfaust-wasm.data?url";
+import libfaustwasmwasm from "@grame/faustwasm/libfaust-wasm/libfaust-wasm.wasm?url";
 
 async function loadCompiler() {
-  const faustModule = await instantiateFaustModuleFromFile(libfaustwasm);
+  const faustModule = await instantiateFaustModuleFromFile(
+    libfaustwasm,
+    libfaustwasmdata,
+    libfaustwasmwasm
+  );
   const libFaust = new LibFaust(faustModule);
   return new FaustCompiler(libFaust);
 }
