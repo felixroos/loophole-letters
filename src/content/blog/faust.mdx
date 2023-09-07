@@ -277,3 +277,59 @@ Questions:
 - Is it bad for performance if the voices are set really high, without using them?
 - is the poly mode just spawning multiple audioworklets from the outside, or is it a feature of the native part?
 - is there a way to schedule `start` and `stop` or `setParamValue` at a specific audio context time?
+
+## FAUST Compiler
+
+There is also a lean API to compile DSP on the fly:
+
+```js
+import {
+  instantiateFaustModuleFromFile,
+  LibFaust,
+  FaustMonoDspGenerator,
+  FaustCompiler,
+} from "@grame/faustwasm";
+import libfaustwasm from "@grame/faustwasm/libfaust-wasm/libfaust-wasm.js?url";
+
+async function loadCompiler() {
+  const faustModule = await instantiateFaustModuleFromFile(libfaustwasm);
+  const libFaust = new LibFaust(faustModule);
+  return new FaustCompiler(libFaust);
+}
+
+let compiler, ac, node;
+
+async function compile(code) {
+  compiler = compiler || (await loadCompiler());
+  ac = ac || new AudioContext();
+
+  const generator = new FaustMonoDspGenerator();
+  const name = "FaustCompile";
+  const argv = ["-I", "libraries/"];
+  const compiled = await generator.compile(
+    compiler,
+    name,
+    code,
+    argv.join(" ")
+  );
+
+  return generator.createNode(ac, "FaustMonoDSP", compiled.factory);
+}
+const compileAndRun = async (code) => {
+  node?.stop();
+  node = await compile(code);
+  node.connect(ac.destination);
+};
+```
+
+Throwing this into a component gives instant live codability:
+
+import { FaustCompile } from "../../components/faust/FaustCompile.jsx";
+
+<FaustCompile
+  value={`import("stdfaust.lib");
+process = ba.pulsen(1, 10000) : pm.djembe(60, 0.3, 0.4, 1);`}
+  client:only
+/>
+
+You can also evaluate with ctrl+enter and stop with ctrl+.
