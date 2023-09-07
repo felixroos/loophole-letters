@@ -105,3 +105,175 @@ console.log(getParams(reverb));
 ```
 
 ... which should be enough to spin up a UI!
+
+## PolySynth
+
+FAUST also has a poly mode, where a single module can handle multiple voices.
+Taking this totally cheap "synth":
+
+```plaintext
+import("stdfaust.lib");
+f = hslider("freq", 440, 50, 2000, 1);
+g = hslider("gain", 0.5, 0, 1, .01);
+t = button("gate");
+process = os.osc(f) * t * g;
+```
+
+This follows the `freq` / `gate` / `gain` convention, which is expected for polyphonic modules. We can generate it with:
+
+```sh
+node scripts/faust2wasm.js test/synth.dsp test/out -poly
+```
+
+for some reason, this logs an error:
+
+```sh
+Faust Compiler version: 2.63.0
+Reading file test/synth.dsp
+Error: synth : 10 : ERROR : undefined symbol : effect
+
+    at _FaustCompiler.createDSPFactory (file:///Users/felix/projects/faustwasm/dist/esm/index.js:1614:36)
+    at async _FaustPolyDspGenerator.compile (file:///Users/felix/projects/faustwasm/dist/esm/index.js:3648:28)
+    at async faust2wasmFiles (file:///Users/felix/projects/faustwasm/src/faust2wasmFiles.js:50:21)
+    at async file:///Users/felix/projects/faustwasm/scripts/faust2wasm.js:27:5
+Compilation successful (29 ms).
+Writing files to test/out
+```
+
+But anyway, it generates `dspModule.wasm` as well as `mixerModule.wasm`, which seems fine.
+
+To know how these files can be used in poly mode, I took inspiration from the standalone code, which can be condensed to:
+
+```js
+import dspModuleUrl from "./synth/dspModule.wasm?url";
+import mixerModuleUrl from "./synth/mixerModule.wasm?url";
+import dspMeta from "./synth/dspMeta.json";
+import { FaustPolyDspGenerator } from "@grame/faustwasm";
+
+const loadFaustSynth = async (ac) => {
+  const [module, mixerModule] = await Promise.all([
+    WebAssembly.compileStreaming(fetch(dspModuleUrl)),
+    WebAssembly.compileStreaming(fetch(mixerModuleUrl)),
+  ]);
+  const generator = new FaustPolyDspGenerator();
+  const node = await generator.createNode(
+    ac,
+    16, // voices
+    "FaustPolyDSP",
+    {
+      module,
+      json: JSON.stringify(dspMeta),
+    },
+    mixerModule
+  );
+  node.connect(ac.destination);
+  return node;
+};
+```
+
+This is pretty similar to how it works in mono mode, just passing the mixerModule + specifying the number of voices.
+
+In the the standalone app, voices are played using the `midiMessage` method like this:
+
+```js
+const midiAccess = await navigator.requestMIDIAccess();
+const { inputs } = midiAccess;
+const currentInput = midiAccess.inputs[0];
+currentInput.addEventListener("midimessage", () => {
+  (e) => faustNode.midiMessage(e.data);
+});
+```
+
+If a midi device is connected, note events will now play the little synth!
+To simplify testing without a midi device, let's just hardcode something that looks like a midi event:
+
+```js
+synth.midiMessage(new Uint8Array([144, 56, 114]));
+synth.midiMessage(new Uint8Array([144, 59, 114]));
+setTimeout(() => {
+  synth.midiMessage(new Uint8Array([144, 56, 0]));
+  synth.midiMessage(new Uint8Array([144, 59, 0]));
+}, 500);
+```
+
+This will just play 2 notes simultaneously of 500ms... Here it is:
+
+import { FaustSynth } from "../../components/faust/FaustSynth.jsx";
+
+<FaustSynth client:only />
+
+While this is certainly a great and easy to use feature, it is not enough for what I am looking for,
+which is not only controlling frequency / gate / gain, but also any other param in a polyphonic fashion.
+So for example, if there was a filter, each voice should potentially have a different cutoff value.
+
+Looking closer at `FaustAudioWorkletNode.ts`, it looks like the `midiMessage` method sends the midi date via postmessage of type `midi`.
+
+The `FaustAudioWorkletProcessor` then takes these postMessages and calls methods on `fDSPCode`, for example `fDSPCode.midiMessage`.
+In the end it allocates a `FaustWebAudioDspVoice` and calls `keyOn` / `keyOff`, passing `pitch` and `velocity`.
+What gives hope is that a `FaustWebAudioDspVoice` also has `setParamValue` / `getParamValue` methods, which look like you could set params on an individual voice.
+
+Here are all relevant parts of the code:
+
+```js
+class FaustPolyWebAudioDsp extends FaustBaseWebAudioDsp {
+  /* stuff */
+  // private fVoiceTable: FaustWebAudioDspVoice[]; // <- allocated voices
+  midiMessage(data: number[] | Uint8Array) {
+    /* stuff */
+    if (cmd === 8 || (cmd === 9 && data2 === 0))
+      return this.keyOff(channel, data1, data2);
+    else if (cmd === 9) return this.keyOn(channel, data1, data2);
+    else super.midiMessage(data); // cc message
+  }
+  keyOn(channel: number, pitch: number, velocity: number) {
+    /* stuff */
+    const voice = this.getFreeVoice(); // sets this.fVoiceTable[voice]
+    this.fVoiceTable[voice].keyOn(
+      pitch,
+      velocity,
+      this.fVoiceTable[voice].fCurNote == FaustWebAudioDspVoice.kLegatoVoice
+    );
+  }
+}
+
+class FaustWebAudioDspVoice {
+  // private fAPI: IFaustDspInstance;
+  keyOn(pitch: number, velocity: number /* */) {
+    this.fFreqLabel.forEach((index) =>
+      this.fAPI.setParamValue(
+        this.fDSP,
+        index,
+        FaustWebAudioDspVoice.midiToFreq(pitch)
+      )
+    );
+    this.fGateLabel.forEach((index) =>
+      this.fAPI.setParamValue(this.fDSP, index, 1)
+    );
+    this.fGainLabel.forEach((index) =>
+      this.fAPI.setParamValue(
+        this.fDSP,
+        index,
+        FaustWebAudioDspVoice.normalizeVelocity(velocity)
+      )
+    );
+    // Keep pitch
+    this.fCurNote = pitch;
+  }
+}
+```
+
+So theoretically, `FaustPolyWebAudioDsp` could have a similar method to `keyOn`, with the ability to set arbitrary key value pairs.
+Similarly, `FaustWebAudioDspVoice` would then have an equivalent method to its `keyOn`, where all key value pairs are converted to `setParamValue` calls.
+Ideally, it should just ignore keys that are not present in the dsp module and just use the ones that are known...
+
+If that approach won't work, full polyphony of effects could also be achieved by just using multiple mono nodes.
+
+Another potential roadblock lies in the fact that nodes cannot be started at a precise point in time.
+In the Web Audio API [AudioScheduledSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioScheduledSourceNode) have `start` and `stop` methods that take an audio context time.
+Without the ability to to that, events cannot be scheduled ahead of time.
+
+Questions:
+
+- Is it bad for performance if the voices are set really high, without using them?
+- is the poly mode just spawning multiple audioworklets from the outside, or is it a feature of the native part?
+- is there a way to schedule `start` and `stop` or `setParamValue` at a specific audio context time?
