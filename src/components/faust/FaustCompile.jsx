@@ -19,12 +19,12 @@ async function loadCompiler() {
   return new FaustCompiler(libFaust);
 }
 
-let compiler, ac, node;
+let compiler, generator, ac, node;
 
 async function compile(code) {
   compiler = compiler || (await loadCompiler());
   ac = ac || new AudioContext();
-  const generator = new FaustMonoDspGenerator();
+  generator = generator || new FaustMonoDspGenerator();
 
   const name = "FaustCompile";
   const argv = ["-I", "libraries/"];
