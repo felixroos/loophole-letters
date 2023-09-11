@@ -1,0 +1,15 @@
+{
+  "identifier": "fr.grame.faust.synth",
+  "name": "synth",
+  "vendor": "Faust User",
+  "description": "",
+  "version": "1.0.0",
+  "apiVersion": "2.0.0",
+  "keywords": [],
+  "isInstrument": false,
+  "website": "",
+  "faustMeta": {
+      "poly": true,
+      "effect": false
+  }
+}

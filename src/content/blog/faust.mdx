@@ -339,3 +339,113 @@ process = ba.pulsen(1, 10000) : pm.djembe(60, 0.3, 0.4, 1);`}
 />
 
 You can also evaluate with ctrl+enter and stop with ctrl+.
+
+## faust2wam
+
+With faust2wam, webaudiomodules can be created from a faust dsp file:
+
+```js
+node faust2wam.js test/synth.dsp test/out -poly
+```
+
+Looking at the generated code, the essential bit is this:
+
+```js
+class FaustCompositeAudioNode extends CompositeAudioNode {
+  setup(output, paramMgr) {
+    if (output.numberOfInputs > 0) this.connect(output, 0, 0);
+    paramMgr.addEventListener("wam-midi", (e) =>
+      output.midiMessage(e.detail.data.bytes)
+    );
+    this._wamNode = paramMgr;
+    this._output = output;
+  }
+
+  destroy() {
+    super.destroy();
+    if (this._output) this._output.destroy();
+  }
+
+  getParamValue(name) {
+    return this._wamNode.getParamValue(name);
+  }
+
+  setParamValue(name, value) {
+    return this._wamNode.setParamValue(name, value);
+  }
+}
+
+const getBasetUrl = (relativeURL) => {
+  const baseURL = relativeURL.href.substring(
+    0,
+    relativeURL.href.lastIndexOf("/")
+  );
+  return baseURL;
+};
+
+export default class FaustPlugin extends WebAudioModule {
+  _PluginFactory;
+  _baseURL = getBasetUrl(new URL(".", import.meta.url));
+  _descriptorUrl = `${this._baseURL}/descriptor.json`;
+
+  async initialize(state) {
+    await this._loadDescriptor();
+    return super.initialize(state);
+  }
+
+  async createAudioNode(initialState) {
+    const faustNode = await loadFaustSynth(this.audioContext);
+    const paramMgrNode = await ParamMgrFactory.create(this, {
+      internalParamsConfig: Object.fromEntries(faustNode.parameters),
+    });
+    const node = new FaustCompositeAudioNode(this.audioContext);
+    node.setup(faustNode, paramMgrNode);
+    if (initialState) node.setState(initialState);
+    return node;
+  }
+
+  createGui() {
+    console.log("i dont care about gui");
+  }
+}
+```
+
+A very simple host can be implemented to load and play it:
+
+```js
+export function WamFaust() {
+  return (
+    <button
+      onClick={async () => {
+        const ac = new AudioContext();
+        const { initializeWamHost } = await import("@webaudiomodules/sdk");
+        const [hostGroupId] = await initializeWamHost(ac);
+
+        const { default: pluginFactory } = await import(
+          "./faust-synth/index.js"
+        );
+        const instance = await pluginFactory.createInstance(
+          hostGroupId,
+          ac,
+          {}
+        );
+        instance.audioNode.connect(ac.destination);
+        const synth = instance.audioNode._output;
+
+        synth.midiMessage(new Uint8Array([144, 56, 114]));
+        synth.midiMessage(new Uint8Array([144, 59, 114]));
+        setTimeout(() => {
+          synth.midiMessage(new Uint8Array([144, 56, 0]));
+          synth.midiMessage(new Uint8Array([144, 59, 0]));
+        }, 500);
+      }}
+    >
+      GO
+    </button>
+  );
+}
+```
+
+import { WamFaust } from "../../components/wam/WamFaust.jsx";
+
+<WamFaust client:only />

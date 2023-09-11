@@ -31,6 +31,12 @@ dependencies:
   '@types/d3-scale':
     specifier: ^4.0.3
     version: 4.0.3
+  '@webaudiomodules/sdk':
+    specifier: ^0.0.11
+    version: 0.0.11
+  '@webaudiomodules/sdk-parammgr':
+    specifier: ^0.0.11
+    version: 0.0.11
   astro:
     specifier: ^2.5.0
     version: 2.5.0
@@ -1163,6 +1169,14 @@ packages:
 
   /@vscode/l10n@0.0.13:
     resolution: {integrity: sha512-A3uY356uOU9nGa+TQIT/i3ziWUgJjVMUrGGXSrtRiTwklyCFjGVWIOHoEIHbJpiyhDkJd9kvIWUOfXK1IkK8XQ==}
+    dev: false
+
+  /@webaudiomodules/sdk-parammgr@0.0.11:
+    resolution: {integrity: sha512-uC3GtQ8Xk7aHCN4ZymhgPKMHDFThc4kyXhXZHKIlYv4Xm0ylVh68pqBuXu3ENS5cblFm3VXzkrezNFGSEKGOhw==}
+    dev: false
+
+  /@webaudiomodules/sdk@0.0.11:
+    resolution: {integrity: sha512-AJkxPWHUQLriXSEMnrSZ3iB8/kItbiN4B7gbm4I543z/xI+Ic+N/oj+tX1YKuQ2sgeQyr2fSt2+t2Keq1V+WCA==}
     dev: false
 
   /acorn-jsx@5.3.2(acorn@8.8.2):

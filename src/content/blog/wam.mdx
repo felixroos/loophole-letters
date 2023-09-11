@@ -1,0 +1,56 @@
+---
+title: Trying Web Audio Modules
+description: ""
+date: "2023-09-11"
+tags: ["code"]
+draft: true
+---
+
+import { Wam } from "../../components/wam/Wam.jsx";
+
+[webaudiomodules](http://webaudiomodules.org/) (link is dead at the time of writing, [read this pdf](https://inria.hal.science/hal-03871660/document)) aim to be "VSTs for the web".
+
+Essentially, they are a standardized API to create and control audio nodes. Here is a miniml example of a module:
+
+```js
+import { WebAudioModule } from "@webaudiomodules/sdk";
+
+// example from https://www.npmjs.com/package/@webaudiomodules/sdk
+export default class SimpleOSCPlugin extends WebAudioModule {
+  // The plugin redefines the async method createAudionode()
+  // that must return an <Audionode>
+  async createAudioNode(options) {
+    const osc = new OscillatorNode(this.audioContext, options);
+    osc.start();
+    return osc;
+  }
+}
+```
+
+Those modules can be loaded by any host that implements webaudio modules:
+
+```js
+export function Wam() {
+  return (
+    <button
+      onClick={async () => {
+        const ac = new AudioContext();
+        const { default: pluginFactory } = await import(
+          "./simple-osc/index.js"
+        );
+        const instance = await pluginFactory.createInstance("osc", ac, {});
+        instance.audioNode.connect(ac.destination);
+      }}
+    >
+      GO
+    </button>
+  );
+}
+```
+
+<Wam client:only />
+
+## Links
+
+https://www.npmjs.com/package/@webaudiomodules/sdk
+https://github.com/webaudiomodules/sdk-parammgr
