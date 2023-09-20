@@ -1,10 +1,10 @@
-import asc from "assemblyscript/dist/assemblyscript";
+//import asc from "assemblyscript/dist/assemblyscript";
 
 export function AssemblyScript() {
   async function run() {
     //const asc = await import("assemblyscript/dist/assemblyscript");
-    console.log("asc", asc);
-    const { error, stdout, stderr, stats } = await asc.main(
+    //console.log("asc", asc);
+    /*  const { error, stdout, stderr, stats } = await asc.main(
       [
         // Command line options
         "myModule.ts",
@@ -15,14 +15,6 @@ export function AssemblyScript() {
         "--stats",
       ],
       {
-        // Additional API options
-        /* stdout?: ...,
-      stderr?: ...,
-      readFile?: ...,
-      writeFile?: ...,
-      listFiles?: ...,
-      reportDiagnostic?: ...,
-      transforms?: ... */
       }
     );
     if (error) {
@@ -30,7 +22,7 @@ export function AssemblyScript() {
       console.log(stderr.toString());
     } else {
       console.log(stdout.toString());
-    }
+    } */
   }
   run();
 
