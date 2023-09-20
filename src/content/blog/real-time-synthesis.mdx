@@ -180,8 +180,7 @@ Using that clock, we can chain buffers like this:
 
 ```js
 function bufferclock(ac, fn) {
-  let t = 0,
-    playhead;
+  let playhead;
   const interval = 0.1;
   const nSamples = interval * ac.sampleRate;
   const buffer = ac.createBuffer(1, nSamples, ac.sampleRate);
