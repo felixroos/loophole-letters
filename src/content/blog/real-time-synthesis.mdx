@@ -218,6 +218,25 @@ document.addEventListener("click", function handleClick() {
 
 Again, you can copy that to your console to hear 10 seconds of a hopefully crackle-free rising sine tone.
 
-You can also press this button to toggle it on and off:
+## Live Coding DSP
 
-<BufferChain client:only />
+With the above implementation, we can already live code our DSP:
+
+<BufferChain client:only value={`Math.sin(440*t*2*Math.PI/ac.sampleRate)`} />
+
+Press ctrl+enter to update while it's playing!
+This editor also supports the abstractions from the buffer post:
+
+<BufferChain client:only value={`saw(330) + saw(440) + saw(550)`} />
+
+## Bonus: Bytebeat
+
+That editor can be used to play bytebeat / flotbeat:
+
+<BufferChain
+  client:only
+  rows={4}
+  value={`((
+((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)
+) & 255) / 127.5 - 1`}
+/>
