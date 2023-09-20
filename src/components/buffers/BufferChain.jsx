@@ -1,5 +1,7 @@
 import { createSignal } from "solid-js";
 import createClock from "./zyklus";
+import { Waveform } from "../scope/Waveform";
+import { cs } from "date-fns/locale";
 
 function getClock(ac, fn, interval) {
   const getTime = () => ac.currentTime;
@@ -12,59 +14,89 @@ function getClock(ac, fn, interval) {
   return clock;
 }
 
-function getBufferSource(ac, length, fn) {
-  const samples = new Float32Array(length);
-  for (let i = 0; i < samples.length; i++) {
-    samples[i] = fn(i);
-  }
-  const buffer = ac.createBuffer(1, samples.length, ac.sampleRate);
-  buffer.getChannelData(0).set(samples);
-  const source = ac.createBufferSource();
-  source.buffer = buffer;
-  source.connect(ac.destination);
-  return source;
+function bufferclock(ac, fn) {
+  let t = 0,
+    playhead;
+  const interval = 0.1;
+  const nSamples = interval * ac.sampleRate;
+  const buffer = ac.createBuffer(1, nSamples, ac.sampleRate);
+  const samples = new Float32Array(nSamples);
+
+  const clock = getClock(
+    ac,
+    () => {
+      for (let i = 0; i < samples.length; i++) {
+        samples[i] = fn(i); // call fn on each sample
+      }
+      buffer.getChannelData(0).set(samples);
+      // play buffer
+      const source = ac.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ac.destination);
+      playhead = playhead || ac.currentTime;
+      playhead < ac.currentTime && console.log("OH NO...");
+      source.start(playhead);
+      playhead += source.buffer.duration;
+      source.stop(playhead);
+    },
+    interval
+  );
+  return clock;
 }
 
-let ac;
-export function BufferChain() {
+export function BufferChain(props) {
+  const [value, setValue] = createSignal(props.value || "Math.sin(t / 20)");
   const [clock, setClock] = createSignal();
+  const [samples, setSamples] = createSignal([]);
+  const [fn, setFn] = createSignal(() => getFn());
+  const getFn = () => eval(`(t) => ${value()}`);
+  let ac;
+  const update = () => setFn(() => getFn());
+  update();
+  const stop = () => {
+    clock()?.stop();
+    setClock();
+  };
+  const start = () => {
+    stop();
+    let t = 0;
+    ac = ac || new AudioContext();
+    const _clock = bufferclock(ac, () => fn()(++t));
+    _clock.start();
+    setClock(_clock);
+  };
+  const toggle = () => {
+    if (clock()) {
+      stop();
+    } else {
+      start();
+    }
+  };
   return (
-    <button
-      onClick={() => {
-        ac = ac || new AudioContext();
-        if (!clock()) {
-          let phase = 0,
-            frequency = 220,
-            playhead = 0,
-            latency = 0.2;
-          const _clock = getClock(ac, () => {
-            const source = getBufferSource(
-              ac,
-              ac.sampleRate * _clock.duration,
-              () => {
-                const out = Math.sin(phase) / 8;
-                frequency += 0.0001;
-                phase += (2 * Math.PI * frequency) / ac.sampleRate;
-                return out;
-              }
-            );
-
-            playhead = playhead || ac.currentTime + latency;
-            playhead < ac.currentTime && console.log("OH NO...");
-            source.start(playhead);
-            playhead += source.buffer.duration;
-            source.stop(playhead);
+    <div class="flex">
+      <textarea
+        class="grow rounded-md"
+        value={value()}
+        ref={(el) => {
+          el.addEventListener("click", function handleClick() {
+            ac = ac || new AudioContext();
+            el.removeEventListener("click", handleClick);
           });
-          _clock.start();
-          setClock(_clock);
-        } else {
-          clock().stop();
-          setClock();
-        }
-      }}
-    >
-      {clock() ? "Stop" : "Start"}
-    </button>
+          el.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.code === "Enter") {
+              update();
+              start();
+            } else if (e.ctrlKey && e.key === ".") {
+              stop();
+            }
+          });
+        }}
+        onInput={(e) => setValue(e.target.value)}
+        rows={props.rows || 1}
+      ></textarea>
+      {/* <Waveform samples={samples() || []} options={{ scale: 0.25 }} /> */}
+      <button onClick={() => toggle()}>{clock() ? "Stop" : "Start"}</button>
+    </div>
   );
 }
 
@@ -78,6 +110,6 @@ function timesink(fn, duration = 1000) {
 
 Object.assign(globalThis, {
   getClock,
-  getBufferSource,
+  bufferclock,
   timesink,
 });

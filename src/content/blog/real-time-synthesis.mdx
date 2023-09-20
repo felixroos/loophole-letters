@@ -6,42 +6,14 @@ tags: ["code"]
 draft: true
 ---
 
+import { BufferPlayer2 } from "../../components/zzfx/BufferPlayer2.jsx";
+import { BufferChain } from "../../components/buffers/BufferChain";
+
 Last time, I was getting into generating buffers by hand to do synthesis.
 This approach is good to learn the basics of sample manipulation, but one obvious limitation is that it does not run in real time,
 as each buffer is pregenerated for a specified number of seconds and then played back.
 
-To recap, a single buffer source can be created like this:
-
-```js
-function getBufferSource(ac, length, fn) {
-  const samples = new Float32Array(length);
-  for (let i = 0; i < samples.length; i++) {
-    samples[i] = fn(i); // call fn on each sample
-  }
-  const buffer = ac.createBuffer(1, samples.length, ac.sampleRate);
-  buffer.getChannelData(0).set(samples);
-  const source = ac.createBufferSource();
-  source.buffer = buffer;
-  source.connect(ac.destination);
-  return source;
-}
-```
-
-...which can be used like this:
-
-```js
-document.addEventListener("click", function handleClick() {
-  const ac = new AudioContext();
-  const seconds = 2;
-  const source = getBufferSource(ac, ac.sampleRate * seconds, (i) =>
-    Math.sin(i / 20)
-  );
-  source.start();
-  document.removeEventListener("click", handleClick);
-});
-```
-
-You can copy the above snippet to your browser console + hit enter + click into the page to hear a sine tone.
+<BufferPlayer2 value={`sin(t / 20)`} seconds={1} client:only />
 
 It would be nice if we could repeatedly regenerate buffers to create endless streams of audio.
 
@@ -82,27 +54,35 @@ Using the loop, we can then chain multple buffer together like this:
 document.addEventListener("click", function handleClick() {
   const ac = new AudioContext();
   const seconds = 1;
-  let phase = 0,
-    playhead = ac.currentTime + 0.1,
-    frequency = 220;
+  const nSamples = seconds * ac.sampleRate;
+  let t = 0;
+  let playhead = 0;
+
+  const buffer = ac.createBuffer(1, nSamples, ac.sampleRate);
+  const samples = new Float32Array(nSamples);
+
   timesink((block) => {
-    const source = getBufferSource(ac, ac.sampleRate * seconds, (i) => {
-      const out = Math.sin(phase) / 8;
-      frequency += 0.001;
-      phase += (2 * Math.PI * frequency) / ac.sampleRate;
-      return out;
-    });
+    const getSample = () => Math.sin(++t / 20);
+    for (let i = 0; i < samples.length; i++) {
+      samples[i] = getSample(i); // call fn on each sample
+    }
+    // buffer.copyToChannel(samples, 0);
+    buffer.getChannelData(0).set(samples);
+    // play the buffer
+    const source = ac.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ac.destination);
     playhead < ac.currentTime && console.log("TOO LATE...");
+    console.log("playhead", playhead);
     source.start(playhead);
     playhead += source.buffer.duration;
     return block < 10;
   }, seconds * 1000);
-
   document.removeEventListener("click", handleClick);
 });
 ```
 
-- The `phase` makes sure the next buffer's sine wave phase starts where the previous one left off.
+- The `t` variable counts the absolute sample number as time progresses
 - The `playhead` variable makes sure the next buffer starts exactly where the last one left off.
 
 If you let that run for a while, you might get `TOO LATE...` logged to the console, because the timeout clock is not synced to the audio context clock...
@@ -184,27 +164,50 @@ function getClock(ac, fn, interval) {
 
 </details>
 
-The clock can be used like that:
+Using the clock, we can chain buffers like this:
+
+```js
+function bufferclock(ac, fn) {
+  let t = 0,
+    playhead;
+  const interval = 0.1;
+  const nSamples = interval * ac.sampleRate;
+  const buffer = ac.createBuffer(1, nSamples, ac.sampleRate);
+  const samples = new Float32Array(nSamples);
+
+  const clock = getClock(
+    ac,
+    () => {
+      // fill buffer
+      for (let i = 0; i < samples.length; i++) {
+        samples[i] = fn(i); // call fn on each sample
+      }
+      buffer.getChannelData(0).set(samples);
+
+      // play buffer
+      const source = ac.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ac.destination);
+      playhead = playhead || ac.currentTime;
+      playhead < ac.currentTime && console.log("OH NO...");
+      source.start(playhead);
+      playhead += source.buffer.duration;
+      source.stop(playhead);
+    },
+    interval
+  );
+  return clock;
+}
+```
+
+... and use it:
 
 ```js
 document.addEventListener("click", function handleClick() {
   const ac = new AudioContext();
-  let phase = 0,
-    frequency = 220,
-    playhead = 0,
-    latency = 0.2;
-  const clock = getClock(ac, (t) => {
-    const source = getBufferSource(ac, ac.sampleRate * clock.duration, () => {
-      const out = Math.sin(phase) / 8;
-      frequency += 0.0001;
-      phase += (2 * Math.PI * frequency) / ac.sampleRate;
-      return out;
-    });
-    playhead = playhead || ac.currentTime + latency;
-    source.start(playhead);
-    playhead += source.buffer.duration;
-    source.stop(playhead);
-  });
+  let t = 0;
+  const clock = bufferclock(ac, () => Math.sin(++t / 20));
+
   clock.start();
   setTimeout(() => {
     clock.stop();
@@ -214,8 +217,6 @@ document.addEventListener("click", function handleClick() {
 ```
 
 Again, you can copy that to your console to hear 10 seconds of a hopefully crackle-free rising sine tone.
-
-import { BufferChain } from "../../components/buffers/BufferChain";
 
 You can also press this button to toggle it on and off:
 
