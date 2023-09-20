@@ -3,21 +3,33 @@ title: Real Time Synthesis
 description: Without pregenerating Buffers
 date: "2023-09-20"
 tags: ["code"]
-draft: true
 ---
 
 import { BufferPlayer2 } from "../../components/zzfx/BufferPlayer2.jsx";
 import { BufferChain } from "../../components/buffers/BufferChain";
 
-Last time, I was getting into generating buffers by hand to do synthesis.
+[Last time, I was getting into generating buffers by hand to do synthesis](https://loophole-letters.netlify.app/buffers/).
 This approach is good to learn the basics of sample manipulation, but one obvious limitation is that it does not run in real time,
-as each buffer is pregenerated for a specified number of seconds and then played back.
+as each buffer is pregenerated for a specified number of seconds and then played back:
 
 <BufferPlayer2 value={`sin(t / 20)`} seconds={1} client:only />
 
-It would be nice if we could repeatedly regenerate buffers to create endless streams of audio.
+It would be nice if we could repeatedly regenerate buffers to create endless streams of audio. Here is what we'll have in the end:
+
+<BufferChain
+  client:only
+  rows={4}
+  value={`((// ryg 2011-10-10
+((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)
+) & 255) / 127.5 - 1`}
+/>
 
 Let's solve this problem in a very naive way first..
+
+## Disclaimer
+
+All of the below implementations are NOT how you would normally do this! The correct solution for this problem is called AudioWorklet,
+which I want to investigate after having tried this "naive" but easier to follow approach.
 
 ## Temporal Recursion
 
@@ -56,7 +68,7 @@ document.addEventListener("click", function handleClick() {
   const seconds = 1;
   const nSamples = seconds * ac.sampleRate;
   let t = 0;
-  let playhead = 0;
+  let playhead = ac.currentTime + 0.1;
 
   const buffer = ac.createBuffer(1, nSamples, ac.sampleRate);
   const samples = new Float32Array(nSamples);
@@ -87,10 +99,10 @@ document.addEventListener("click", function handleClick() {
 
 If you let that run for a while, you might get `TOO LATE...` logged to the console, because the timeout clock is not synced to the audio context clock...
 
-We **could** solve that problem by replacing `timesink` with the "Tale of 2 Clocks" scheduling mechanism from an earlier post:
+We can solve that problem by replacing `timesink` with the "Tale of 2 Clocks" scheduling mechanism from [an earlier post](https://loophole-letters.vercel.app/web-audio-scheduling).
 
 <details>
-<summary>show code</summary>
+<summary>show full clock code</summary>
 
 ```js
 // generalized "Tale of 2 Clocks" scheduling
@@ -164,7 +176,7 @@ function getClock(ac, fn, interval) {
 
 </details>
 
-Using the clock, we can chain buffers like this:
+Using that clock, we can chain buffers like this:
 
 ```js
 function bufferclock(ac, fn) {
@@ -218,6 +230,8 @@ document.addEventListener("click", function handleClick() {
 
 Again, you can copy that to your console to hear 10 seconds of a hopefully crackle-free rising sine tone.
 
+This is still not the state of the art solution, but it's fun nonetheless + works for simpler stuff.
+
 ## Live Coding DSP
 
 With the above implementation, we can already live code our DSP:
@@ -225,18 +239,54 @@ With the above implementation, we can already live code our DSP:
 <BufferChain client:only value={`Math.sin(440*t*2*Math.PI/ac.sampleRate)`} />
 
 Press ctrl+enter to update while it's playing!
-This editor also supports the abstractions from the buffer post:
+This editor also supports the abstractions from the [buffer post](https://loophole-letters.netlify.app/buffers/):
 
-<BufferChain client:only value={`saw(330) + saw(440) + saw(550)`} />
+<BufferChain
+  client:only
+  rows={3}
+  value={`(
+  saw(330) + saw(440) + saw(550) + saw(660 - t/10000)
+)/4`}
+/>
 
 ## Bonus: Bytebeat
 
-That editor can be used to play bytebeat / flotbeat:
+That editor can be used to play [bytebeat / floatbeat](https://github.com/greggman/html5bytebeat):
 
 <BufferChain
   client:only
   rows={4}
-  value={`((
+  value={`((// ryg 2011-10-10
 ((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)
 ) & 255) / 127.5 - 1`}
 />
+
+Classic Bytebeat uses numbers from 0 to 255. We can convert them to the range `[-1,1]` like this:
+
+```js
+const byte2floatbeat = (max255) => (max255 & 255) / 127.5 - 1;
+```
+
+<BufferChain
+  client:only
+  rows={8}
+  hz={8000}
+  value={`((
+// http://arhivach.ng/thread/28592/#71678428
+(0<t&65535>t?t%32>t/1E4?t>>4:t>>6:65535<0+t&131070>t?t%32>t%43?t>>4:t>>6:131070<0+t&196605>t?t%36>t%43?t>>4:t>>6:196605<0+t&262140>t?t%64>t%43?t>>4:t>>6:262140<0+t&327675>t?5<t%43?t<<3:t>>6:327675<0+t&393210>t?5<t%27?t<<3:t>>6:393210<0+t&524280>t?5<t%63?t<<3:t>>6:0)&t>>4
+) & 255) / 127.5 - 1`}
+/>
+
+<BufferChain
+  client:only
+  rows={16}
+  hz={8000}
+  value={`((
+// https://youtu.be/dQw4w9WgXcQ
+125E3<t?4.238*t:124375<t?.01*t:125E3<t?4.238*t:122500<t?4.757*t:12E4<t?3.364*t:118750<t?.01*t:115E3<t?3.364*t:113750<t?3.564*t:11E4<t?4*t:108750<t?.01*t:106250<t?4.757*t:105E3<t?.01*t:102500<t?4.238*t:101250<t?3.564*t:1E5<t?4.238*t:98750<t?3.564*t:97500<t?3.175*t:95E3<t?3.564*t:93750<t?4*t:91250<t?4.238*t:9E4<t?.01*t:87500<t?4.757*t:86250<t?.01*t:83750<t?4.757*t:82500<t?3.564*t:81250<t?4.238*t:8E4<t?3.564*t:78750<t?3.175*t:77500<t?.01*t:72500<t?4.757*t:71250<t?.01*t:68750<t?5.339*t:67500<t?.01*t:65E3<t?5.339*t:63750<t?3.564*t:62500<t?4.238*t:61250<t?3.564*t:6E4<t?3.175*t:52500<t?3.175*t:45E3<t?4.757*t:36250<t?4.283*t:35E3<t?5.339*t:33750<t?5.657*t:32500<t?6.35*t:25E3<t?5.656*t:2E4<t?5.04*t:18500<t?3.36*t:7500<t?5.04*t:4.236*t
+) & 255) / 127.5 - 1`}
+/>
+
+## Conclusion
+
+This was a fun experiment.. I originally planned to conclude with AudioWorklets, but I guess that'll happen in a future post...

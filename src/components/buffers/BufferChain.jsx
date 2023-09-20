@@ -1,7 +1,6 @@
 import { createSignal } from "solid-js";
 import createClock from "./zyklus";
 import { Waveform } from "../scope/Waveform";
-import { cs } from "date-fns/locale";
 
 function getClock(ac, fn, interval) {
   const getTime = () => ac.currentTime;
@@ -14,7 +13,7 @@ function getClock(ac, fn, interval) {
   return clock;
 }
 
-function bufferclock(ac, fn) {
+function bufferclock(ac, fn, onBlock) {
   let playhead,
     latency = 0.1;
   const interval = 0.02;
@@ -38,6 +37,7 @@ function bufferclock(ac, fn) {
       source.start(playhead);
       playhead += source.buffer.duration;
       source.stop(playhead);
+      onBlock?.(samples);
     },
     interval
   );
@@ -79,10 +79,16 @@ export function BufferChain(props) {
   };
   const start = () => {
     ac = ac || new AudioContext();
+    let srcSampleRate = props.hz || ac.sampleRate;
+    let sampleRatio = srcSampleRate / ac.sampleRate;
     update();
     stop();
     let t = 0;
-    const _clock = bufferclock(ac, () => fn()(++t));
+    const _clock = bufferclock(
+      ac,
+      () => fn()(++t * sampleRatio),
+      (samples) => setSamples([...samples])
+    );
     _clock.start();
     setClock(_clock);
   };
@@ -94,30 +100,36 @@ export function BufferChain(props) {
     }
   };
   return (
-    <div class="flex">
-      <textarea
-        rows={props.rows || 1}
-        class="grow rounded-md"
-        value={value()}
-        ref={(el) => {
-          el.addEventListener("click", function handleClick() {
-            ac = ac || new AudioContext();
-            el.removeEventListener("click", handleClick);
-          });
-          el.addEventListener("keydown", (e) => {
-            if (e.ctrlKey && e.code === "Enter") {
-              update();
-              start();
-            } else if (e.ctrlKey && e.key === ".") {
-              stop();
-            }
-          });
-        }}
-        onInput={(e) => setValue(e.target.value)}
-        rows={props.rows || 1}
-      ></textarea>
-      {/* <Waveform samples={samples() || []} options={{ scale: 0.25 }} /> */}
-      <button onClick={() => toggle()}>{clock() ? "Stop" : "Start"}</button>
+    <div class="bg-blue-100 p-2 my-2 rounded-md">
+      <div class="flex items-start space-x-2">
+        <textarea
+          rows={props.rows || 1}
+          class="grow rounded-md"
+          value={value()}
+          ref={(el) => {
+            el.addEventListener("click", function handleClick() {
+              ac = ac || new AudioContext();
+              el.removeEventListener("click", handleClick);
+            });
+            el.addEventListener("keydown", (e) => {
+              if (e.ctrlKey && e.code === "Enter") {
+                update();
+                start();
+              } else if (e.ctrlKey && e.key === ".") {
+                stop();
+              }
+            });
+          }}
+          onInput={(e) => setValue(e.target.value)}
+        ></textarea>
+        <button
+          class="bg-gray-800 text-white rounded-md h-12 px-2"
+          onClick={() => toggle()}
+        >
+          {clock() ? "Stop" : "Start"}
+        </button>
+      </div>
+      <Waveform samples={samples() || []} options={{ scale: 0.25 }} />
     </div>
   );
 }
