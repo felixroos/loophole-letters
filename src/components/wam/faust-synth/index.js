@@ -1,4 +1,4 @@
-import { WebAudioModule } from "@webaudiomodules/sdk";
+/* import { WebAudioModule } from "@webaudiomodules/sdk";
 import {
   CompositeAudioNode,
   ParamMgrFactory,
@@ -94,3 +94,4 @@ export default class FaustPlugin extends WebAudioModule {
     console.log("i dont care about gui");
   }
 }
+ */

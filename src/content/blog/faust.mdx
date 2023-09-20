@@ -446,9 +446,9 @@ export function WamFaust() {
 }
 ```
 
-import { WamFaust } from "../../components/wam/WamFaust.jsx";
+// import WamFaust from "../../components/wam/WamFaust.jsx";
 
-<WamFaust client:only />
+WamFaust client:only
 
 ## FaustRaw
 
@@ -462,7 +462,7 @@ The function `getFaustAudioWorkletProcessor` returns the `AudioWorkletProcessor`
 The `process` function calls `this.fDSPCode.compute` to update the output buffers based on the input buffers.
 `this.fDSPCode` is an instance of `FaustMonoWebAudioDsp`, which is a wrapper around the wasm.
 
-The question: where to implement the custom poly behavior? 
+The question: where to implement the custom poly behavior?
 The compute function basically calls the faust dsp file's `processor` function.
 In the case of a mono oscillator, this will output samples for a single oscillator.
 To create multiple oscillators, the compute function would need to be called multiple times,

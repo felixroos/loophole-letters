@@ -2,9 +2,10 @@
 import dspModuleUrl from "./synth/dspModule.wasm?url";
 import mixerModuleUrl from "./synth/mixerModule.wasm?url";
 import dspMeta from "./synth/dspMeta.json";
-import { FaustPolyDspGenerator } from "@grame/faustwasm";
+//import { FaustPolyDspGenerator } from "@grame/faustwasm";
 
 export const loadFaustSynth = async (ac) => {
+  /* 
   const [module, mixerModule] = await Promise.all([
     WebAssembly.compileStreaming(fetch(dspModuleUrl)),
     WebAssembly.compileStreaming(fetch(mixerModuleUrl)),
@@ -22,6 +23,7 @@ export const loadFaustSynth = async (ac) => {
   );
   node.connect(ac.destination);
   return node;
+ */
 };
 
 let ac, synth;
