@@ -1,0 +1,110 @@
+participate:
+https://websoundart.org/
+
+read:
+https://documentation.divio.com/introduction/
+https://cpu.land/
+
+faust:
+https://loophole-letters.netlify.app/faust/
+https://ijc8.me/faustdoc/workshops/2020-04-10-faust-101/ (ian clesters faust fork with new faust web component)
+  https://ijc8.me/faustdoc/manual/quick-start/
+https://faust.grame.fr/community/powered-by-faust/
+https://www.npmjs.com/package/@grame/faustwasm
+https://github.com/grame-cncm/faustplayground (ojack recommended checking out synths)
+https://youtu.be/hDkur8zOcv0?si=jGucpxdWm73kDZbb&t=1774 (standford faust vorlesung)
+  https://ccrma.stanford.edu/courses/250a-spring-2023/labs/1/
+  https://ccrma.stanford.edu/courses/250a-spring-2023/projects/
+https://www.kadenze.com/courses/real-time-audio-signal-processing-in-faust/info
+
+
+dsp / web audio:
+https://www.musicdsp.org/ (dsp algorithms! wavesabre recommended)
+https://github.com/padenot/litsynth/blob/master/litsynth.js
+https://github.com/ryohey/wavelet/tree/main
+https://github.com/mjcella/facet
+https://github.com/ryohey/sf2synth.js/tree/master
+https://github.com/ryohey/signal/blob/main/src/main/services/SoundFontSynth.ts#L3
+https://github.com/Mrtenz/soundfont2
+https://github.com/hundredrabbits/Pilot/tree/master#
+https://github.com/daslyfe/JSSynth/blob/master/src/dsp/modules.js (grainboy)
+https://gitlab.com/raphaelbastide/ete/-/blob/main/js/webaudio.js (ete)
+https://jsgist.org/?src=5c0429e50839b546a38ce9dbb66c2ab3 (bytebeat audioworklet code!!)
+https://github.com/petersalomonsen/javascriptmusic/blob/master/wasmaudioworklet/synth1/browsercompilerwebworker.js#L9
+!!! https://gitlab.com/mbitsnbites/soundbox/-/blob/master/player-worker.js (tracker buffer synth with nice fx)
+https://github.com/KilledByAPixel/ZzFX/blob/master/ZzFX.js
+  https://killedbyapixel.github.io/ZzFX/
+https://dittytoy.net/syntax
+https://stackoverflow.com/questions/57921909/how-to-code-an-oscillator-using-audioworklet/57992178#57992178
+https://vsaiz.me/woscillators !! plaits in web audio
+https://tidalcycles.org/docs/reference/audio_effects/
+https://cmajor.dev/docs/PatchFormat#building-a-web-audio-audioworkletnode-from-a-patch
+
+
+https://thewolfsound.com/talk014/
+
+pepper midi 2 cv!
+
+assemblyscript:
+https://github.com/AssemblyScript/assemblyscript
+  https://www.assemblyscript.org/compiler.html#portability
+https://github.com/WebAssembly/binaryen/wiki/Compiling-to-WebAssembly-with-Binaryen
+  https://www.npmjs.com/package/binaryen
+
+music:
+https://optimomusic.bandcamp.com/album/sketches-for-summer-free-pay-what-you-want
+https://www.youtube.com/watch?v=hq6w-sPMnJE (bubo recommended)
+https://www.youtube.com/watch?v=AI5gnM08BKk (jade rose album)
+https://www.mixcloud.com/dilettant/instrumental-h%C3%BCte-und-jacken/ (mein mixcloud)
+https://junted.bandcamp.com/album/high-frequency-altar
+
+samples:
+https://archive.org/details/AmigaSoundtrackerSamplePacksst-xx
+  https://github.com/Bubobubobubobubo/Dough-Amiga
+https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE
+  https://github.com/Bubobubobubobubo/Dough-Waveforms
+  https://www.adventurekid.se/AKRTfiles/AKWF/view/waveforms_index.html
+https://www.adventurekid.se/akrt/waveforms/akwf-nes-8-bit-free/
+https://github.com/tahti-studio/tahti-default-library 
+  https://github.com/felixroos/tahti-default-library
+
+fonts:
+https://usemodify.com/
+
+tools:
+https://galax.xyz/TELETEXT/GRAPHICS.HTM (teletext generator)
+https://www.warmplace.ru/soft/fbits/
+http://viznut.fi/ibniz/
+
+watch:
+https://de.wikipedia.org/wiki/Devs
+https://www.youtube.com/watch?v=plu04_ewZUQ&list=PLKgxw7RG3hcRHyBFsPr5opr1iu8wbNIgP&index=21&t=5s (kindohm breaks slicing)
+  https://strudel.tidalcycles.org/?N_UjcefaZoBw (yaxu splice demo)
+https://www.youtube.com/watch?v=V4dImdwJeHY (Wie das Streaming die Musik auffraß | Doku HD | ARTE)
+
+code:
+https://github.com/tomkp/react-split-pane
+https://github.com/atfornes/Hydra-strudel-extension
+https://elysiajs.com/
+https://github.com/nicojs/typed-html
+
+midi:
+https://webmidijs.org/api/classes/Input#event-midimessage
+
+interface:
+https://archiv.rme-audio.de/download/RME-DC-Coupled-Outputs.pdf
+https://www.kleinanzeigen.de/s-anzeige/rme-fireface-uc-usb-interface-rme-ueberholt/2533703675-74-8889
+
+embedded audio:
+https://www.youtube.com/watch?v=iiiMGXwyzqo&list=PLOjbFVchrTEyJBfXwbhBicpxuOOPgtQ3v&index=2
+https://fastbitlab.com/course1/
+https://www.udemy.com/course/microcontroller-embedded-c-programming/?couponCode=FASTWEBSEP23
+
+
+mi:
+https://www.reddit.com/r/modular/comments/zg6pq1/a_question_for_anyone_that_knows_how_mi_firmware/  
+https://pichenettes.github.io/mutable-instruments-documentation/tech_notes/education/
+
+daisy:
+https://forum.electro-smith.com/t/welcome-to-daisy-get-started-here/15
+https://github.com/electro-smith/DaisyWiki/wiki
