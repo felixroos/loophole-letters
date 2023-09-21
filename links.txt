@@ -39,7 +39,8 @@ https://stackoverflow.com/questions/57921909/how-to-code-an-oscillator-using-aud
 https://vsaiz.me/woscillators !! plaits in web audio
 https://tidalcycles.org/docs/reference/audio_effects/
 https://cmajor.dev/docs/PatchFormat#building-a-web-audio-audioworkletnode-from-a-patch
-
+https://github.com/wavepot/wavep0t
+https://github.com/maximecb/noisecraft
 
 https://thewolfsound.com/talk014/
 
