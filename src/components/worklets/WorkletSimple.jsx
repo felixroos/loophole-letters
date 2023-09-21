@@ -9,13 +9,13 @@ export function WorkletSimple(props) {
   let worklet, ac;
   const stop = async () => {
     worklet?.stop();
-    await worklet?.node?.disconnect();
+    worklet?.node?.disconnect();
     setPlaying(false);
   };
   const update = async () => {
     ac = ac || new AudioContext();
     await ac.resume();
-    //await stop();
+    stop();
     const name = `simple-custom-${Date.now()}`;
     worklet = await getSimpleDynamicWorklet(ac, name, value(), props.hz);
     worklet.node.connect(ac.destination);
