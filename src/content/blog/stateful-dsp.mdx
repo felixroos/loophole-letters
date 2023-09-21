@@ -1,0 +1,27 @@
+---
+title: Stateful DSP
+description: ""
+date: "2023-09-22"
+tags: ["code"]
+---
+
+import { WorkletSimple } from "../../components/worklets/WorkletSimple";
+
+In my last 3 posts, I've started to learn how to do DSP on the web:
+
+1. [Making Music with Buffers](https://loophole-letters.netlify.app/buffers/): Pregenerated Buffers
+2. [Real Time Synthesis](https://loophole-letters.netlify.app/real-time-synthesis/): Naively Chaining Buffers
+3. [Real Time Synthesis pt 2](https://loophole-letters.netlify.app/real-time-synthesis2/): Using AudioWorklets
+
+So far, the actual DSP was completely stateless, as every sample was calculated only based on the current sample number `t`:
+
+<WorkletSimple
+  value={`{
+let seq = (items, dur) => items[Math.floor(t/dur/44100)%items.length]
+return 110*seq([1,1.5,2,2.5,3],.0625)*t/44100%1/2
+}`}
+  rows={4}
+  client:only
+/>
+
+This is very charming but also limited.

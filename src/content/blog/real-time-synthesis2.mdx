@@ -175,3 +175,12 @@ t*(4|t>>13&3)>>(~t>>11&1)&128|t*(t>>11&t>>13)*(~t>>9&3)&127
   hz={8000}
   client:only
 />
+
+## Bonus: Minimal ByteCode
+
+Here's a little snippet that will play bytecode on click in just 585 bytes:
+
+{/* prettier-ignore */}
+```js
+document.addEventListener("click",async function e(){let t="my-processor",o=`class MyProcessor extends AudioWorkletProcessor{constructor(){super(),this.t=0}process(s,t,r){let e=t[0];for(let _=0;_<e[0].length;_++){var o;let c=((((o=this.t)*(15&"36364689"[o>>13&7])/12&128)+(((o>>12^(o>>12)-2)%11*o/4|o>>13)&127)&255)/127.5-1)/4;e.forEach(s=>{s[_]=c}),this.t++}return!0}}registerProcessor("${t}",MyProcessor);`,s=new AudioContext;await s.resume();let r=`data:text/javascript;base64,${btoa(o)}`;await s.audioWorklet.addModule(r);let c=new AudioWorkletNode(s,t);c.connect(s.destination)});
+```
