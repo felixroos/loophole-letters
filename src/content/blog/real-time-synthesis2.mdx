@@ -57,7 +57,7 @@ document.addEventListener("click", async function handleClick() {
 }
 registerProcessor('${name}', MyProcessor);`;
   const ac = new AudioContext();
-  const dataURL = `data:text/plain;base64,${btoa(workletCode)}`;
+  const dataURL = `data:text/javascript;base64,${btoa(workletCode)}`;
   await ac.audioWorklet.addModule(dataURL);
   const node = new AudioWorkletNode(ac, name);
   node.connect(ac.destination);
@@ -77,13 +77,13 @@ I want to have a self contained code snippet that can be copy pasted, I need to 
 
 ```js
 document.addEventListener("click", () => {
-  const base64String = btoa("hello world");
-  const dataURL = `data:text/plain;base64,${base64String}`;
+  const base64String = btoa("console.log('hello world')");
+  const dataURL = `data:text/javascript;base64,${base64String}`;
   console.log(dataURL);
 });
 ```
 
-This will log data:text/plain;base64,aGVsbG8gd29ybGQ= which is a [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs).
+This will create a [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs) from a string.
 Try copy pasting it into the address bar! It will behave just like a regular URL.
 
 ## AudioWorkletProcessor

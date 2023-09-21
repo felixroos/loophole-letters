@@ -45,7 +45,7 @@ export async function getDynamicWorklet(ac, name, hooks, params = []) {
 registerProcessor('${name}', MyProcessor);
   `;
   const base64String = btoa(workletCode);
-  const dataURL = `data:text/plain;base64,${base64String}`;
+  const dataURL = `data:text/javascript;base64,${base64String}`;
   await ac.audioWorklet.addModule(dataURL);
   return getWorklet(ac, name, {});
 }
@@ -87,7 +87,7 @@ export async function getSimpleDynamicWorklet(
 registerProcessor('${name}', MyProcessor);
   `;
   const base64String = btoa(workletCode);
-  const dataURL = `data:text/plain;base64,${base64String}`;
+  const dataURL = `data:text/javascript;base64,${base64String}`;
   await ac.audioWorklet.addModule(dataURL);
   const node = getWorklet(ac, name, {});
   const stop = () => node.port.postMessage("stop");
