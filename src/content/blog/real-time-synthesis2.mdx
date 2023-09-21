@@ -57,6 +57,7 @@ document.addEventListener("click", async function handleClick() {
 }
 registerProcessor('${name}', MyProcessor);`;
   const ac = new AudioContext();
+  await ac.resume();
   const dataURL = `data:text/javascript;base64,${btoa(workletCode)}`;
   await ac.audioWorklet.addModule(dataURL);
   const node = new AudioWorkletNode(ac, name);

@@ -7,15 +7,15 @@ export function WorkletSimple(props) {
   const [playing, setPlaying] = createSignal(false);
 
   let worklet, ac;
-  const stop = () => {
-    console.log("stop");
+  const stop = async () => {
     worklet?.stop();
-    worklet?.node?.disconnect();
+    await worklet?.node?.disconnect();
     setPlaying(false);
   };
   const update = async () => {
     ac = ac || new AudioContext();
-    stop();
+    await ac.resume();
+    //await stop();
     const name = `simple-custom-${Date.now()}`;
     worklet = await getSimpleDynamicWorklet(ac, name, value(), props.hz);
     worklet.node.connect(ac.destination);
