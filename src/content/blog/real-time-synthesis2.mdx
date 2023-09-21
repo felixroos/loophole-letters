@@ -1,0 +1,176 @@
+---
+title: Real Time Synthesis pt 2
+description: The proper way
+date: "2023-09-21"
+tags: ["code"]
+---
+
+import { BufferChain } from "../../components/buffers/BufferChain";
+import { WorkletSimple } from "../../components/worklets/WorkletSimple";
+
+[Last time, I used a naive approach to implemented real time audio synthesis in the browser](https://loophole-letters.netlify.app/real-time-synthesis/).
+It was good as a stepping stone to understand the general mechanics of a loop that repeatedly fills a buffer with audio samples,
+which I played back using regular `AudioBufferSourceNode`'s. As already mentioned, this is not the proper way to do it. Why?
+
+- It all runs on the main thread, so performance is weak
+- The scheduling is a mess
+
+## AudioWorklet
+
+The `AudioWorklet` node is a web audio feature that solves all of this: It gives as a dedicated audio thread to fill buffers as we like + some neat abstractions.
+As in the last post, here is a live codable text input, but this time it runs inside an AudioWorklet:
+
+<WorkletSimple value={`Math.sin(t/20)/2`} rows={1} client:only />
+
+Of course, this also works with bytebeat:
+
+<WorkletSimple
+  value={`((( // lhphr - Fractalized Past
+(t>>10^t>>11)%5*((t>>14&3^t>>15&1)+1)*t%99+((3+(t>>14&3)-(t>>16&1))/3*t%99&64)
+) & 255) / 127.5 - 1)/4`}
+  rows={4}
+  hz={8000}
+  client:only
+/>
+Here's a minimal example of how to create an AudioWorklet:
+
+```js
+document.addEventListener("click", async function handleClick() {
+  const name = "my-processor";
+  const expression = `Math.sin(t / 20) / 4`;
+  const workletCode = `class MyProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.t = 0;
+  }
+  process(inputs, outputs, parameters) {
+    const output = outputs[0];
+    for (let i = 0; i < output[0].length; i++) {
+      const out = ((t) => ${expression})(this.t);
+      output.forEach((channel) => {
+        channel[i] = out;
+      });
+      this.t++;
+    }
+    return true;
+  }
+}
+registerProcessor('${name}', MyProcessor);`;
+  const ac = new AudioContext();
+  const dataURL = `data:text/plain;base64,${btoa(workletCode)}`;
+  await ac.audioWorklet.addModule(dataURL);
+  const node = new AudioWorkletNode(ac, name);
+  node.connect(ac.destination);
+});
+```
+
+You can enter that snippet into your browser console and click into the document to hear a beatiful, infinite sine tone.
+
+Let me go a bit into the details of why this works..
+
+## Faking URLs
+
+Because an AudioWorklet runs in a separate thread, like a Worker, it needs to be loaded from a URL.
+I could've created a new file with the workletCode in it and passed its URL to `ac.audioWorklet.addModule`.
+But the fact that I want to dynamically insert an expression to evaluate on every sample, and also the fact that
+I want to have a self contained code snippet that can be copy pasted, I need to dynamically create a "fake" url:
+
+```js
+document.addEventListener("click", () => {
+  const base64String = btoa("hello world");
+  const dataURL = `data:text/plain;base64,${base64String}`;
+  console.log(dataURL);
+});
+```
+
+This will log data:text/plain;base64,aGVsbG8gd29ybGQ= which is a [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs).
+Try copy pasting it into the address bar! It will behave just like a regular URL.
+
+## AudioWorkletProcessor
+
+With that out of the way, let's look at the actual AudioWorklet code:
+
+```js
+// my-processor.js
+class MyProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.t = 0;
+  }
+  process(inputs, outputs, parameters) {
+    const output = outputs[0];
+    const getSample = (t) => Math.sin(t / 20) / 4;
+    for (let i = 0; i < output[0].length; i++) {
+      output.forEach((channel) => {
+        channel[i] = getSample(this.t);
+      });
+      this.t++;
+    }
+    return true;
+  }
+}
+registerProcessor("my-processor", MyProcessor);
+```
+
+The [process method](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletProcessor/process) is the interface to the computers audio processor, giving us access to input and output buffers.
+Inside, we just loop over all output buffer samples and fill them with a sine wave.
+
+This is the code that we would need to run from a separate URL like this:
+
+```js
+const ac = new AudioContext();
+await ac.audioWorklet.addModule("./my-processor.js");
+const node = new AudioWorkletNode(ac, name);
+node.connect(ac.destination);
+```
+
+## Stopping a Worklet
+
+We still need a way to stop the worklet... We need 2 pieces of knowledge to do that:
+
+1. As long as we return `true` from `process`, we signal the browser that our worklet is still active.
+2. Both `AudioWorkletNode` and `AudioWorkletProcessor` have a `port` property, which can be used to send messages around.
+
+```js
+// my-processor.js
+class MyProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.stopped = false;
+    this.port.onmessage = (e) => {
+      if (e.data === "stop") {
+        this.stopped = true;
+      }
+    };
+  }
+
+  process(inputs, outputs, parameters) {
+    /*....*/
+    return !this.stopped;
+  }
+}
+// index.js or whatever
+const ac = new AudioContext();
+await ac.audioWorklet.addModule("./my-processor.js");
+const node = new AudioWorkletNode(ac, name);
+node.connect(ac.destination);
+const stop = () => node.port.postMessage("stop");
+```
+
+I am not 100% sure if this is the most elegant way to stop a worklet.. If you know a better approach, let me know.
+
+## Conclusion
+
+AudioWorklets are cool! This architecture should be a good foundation for writing custom DSP!
+It is still not the best you can get, as it still runs on JS, but it can get you quite far.
+You could crank out more performance by compiling a systems level language to WASM and run that inside the AudioWorkletProcessor,
+which is what I want to try out in another post.
+
+<WorkletSimple
+  value={`((( // by stimmer (2011-10-03)
+t*(4|t>>13&3)>>(~t>>11&1)&128|t*(t>>11&t>>13)*(~t>>9&3)&127
+) & 255) / 127.5 - 1)/4`}
+  rows={4}
+  hz={8000}
+  client:only
+/>

@@ -12,16 +12,16 @@ import { BufferChain } from "../../components/buffers/BufferChain";
 This approach is good to learn the basics of sample manipulation, but one obvious limitation is that it does not run in real time,
 as each buffer is pregenerated for a specified number of seconds and then played back:
 
-<BufferPlayer2 value={`sin(t / 20)`} seconds={1} client:only />
+<BufferPlayer2 value={`sin(t / 20)/2`} seconds={1} client:only />
 
 It would be nice if we could repeatedly regenerate buffers to create endless streams of audio. Here is what we'll have in the end:
 
 <BufferChain
   client:only
   rows={4}
-  value={`((// ryg 2011-10-10
+  value={`(((// ryg 2011-10-10
 ((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)
-) & 255) / 127.5 - 1`}
+) & 255) / 127.5 - 1)/4`}
 />
 
 Let's solve this problem in a very naive way first..
@@ -235,7 +235,7 @@ This is still not the state of the art solution, but it's fun nonetheless + work
 
 With the above implementation, we can already live code our DSP:
 
-<BufferChain client:only value={`Math.sin(440*t*2*Math.PI/ac.sampleRate)`} />
+<BufferChain client:only value={`Math.sin(440*t*2*Math.PI/ac.sampleRate)/4`} />
 
 Press ctrl+enter to update while it's playing!
 This editor also supports the abstractions from the [buffer post](https://loophole-letters.netlify.app/buffers/):
@@ -245,7 +245,7 @@ This editor also supports the abstractions from the [buffer post](https://loopho
   rows={3}
   value={`(
   saw(330) + saw(440) + saw(550) + saw(660 - t/10000)
-)/4`}
+)/8`}
 />
 
 ## Bonus: Bytebeat
@@ -255,9 +255,9 @@ That editor can be used to play [bytebeat / floatbeat](https://github.com/greggm
 <BufferChain
   client:only
   rows={4}
-  value={`((// ryg 2011-10-10
+  value={`(((// ryg 2011-10-10
 ((t*("36364689"[t>>13&7]&15))/12&128)+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127)
-) & 255) / 127.5 - 1`}
+) & 255) / 127.5 - 1)/4`}
 />
 
 Classic Bytebeat uses numbers from 0 to 255. We can convert them to the range `[-1,1]` like this:
@@ -270,20 +270,20 @@ const byte2floatbeat = (max255) => (max255 & 255) / 127.5 - 1;
   client:only
   rows={8}
   hz={8000}
-  value={`((
+  value={`(((
 // http://arhivach.ng/thread/28592/#71678428
 (0<t&65535>t?t%32>t/1E4?t>>4:t>>6:65535<0+t&131070>t?t%32>t%43?t>>4:t>>6:131070<0+t&196605>t?t%36>t%43?t>>4:t>>6:196605<0+t&262140>t?t%64>t%43?t>>4:t>>6:262140<0+t&327675>t?5<t%43?t<<3:t>>6:327675<0+t&393210>t?5<t%27?t<<3:t>>6:393210<0+t&524280>t?5<t%63?t<<3:t>>6:0)&t>>4
-) & 255) / 127.5 - 1`}
+) & 255) / 127.5 - 1)/4`}
 />
 
 <BufferChain
   client:only
   rows={16}
   hz={8000}
-  value={`((
+  value={`(((
 // https://youtu.be/dQw4w9WgXcQ
 125E3<t?4.238*t:124375<t?.01*t:125E3<t?4.238*t:122500<t?4.757*t:12E4<t?3.364*t:118750<t?.01*t:115E3<t?3.364*t:113750<t?3.564*t:11E4<t?4*t:108750<t?.01*t:106250<t?4.757*t:105E3<t?.01*t:102500<t?4.238*t:101250<t?3.564*t:1E5<t?4.238*t:98750<t?3.564*t:97500<t?3.175*t:95E3<t?3.564*t:93750<t?4*t:91250<t?4.238*t:9E4<t?.01*t:87500<t?4.757*t:86250<t?.01*t:83750<t?4.757*t:82500<t?3.564*t:81250<t?4.238*t:8E4<t?3.564*t:78750<t?3.175*t:77500<t?.01*t:72500<t?4.757*t:71250<t?.01*t:68750<t?5.339*t:67500<t?.01*t:65E3<t?5.339*t:63750<t?3.564*t:62500<t?4.238*t:61250<t?3.564*t:6E4<t?3.175*t:52500<t?3.175*t:45E3<t?4.757*t:36250<t?4.283*t:35E3<t?5.339*t:33750<t?5.657*t:32500<t?6.35*t:25E3<t?5.656*t:2E4<t?5.04*t:18500<t?3.36*t:7500<t?5.04*t:4.236*t
-) & 255) / 127.5 - 1`}
+) & 255) / 127.5 - 1)/4`}
 />
 
 ## Conclusion

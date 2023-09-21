@@ -297,13 +297,13 @@ Here is a simple bytebeat editor that prerenders a sample of 10s:
   client:only
 />
 
-<ByteBeat  value={`// Fractalized Past
+<ByteBeat
+  value={`// Fractalized Past
 // by: lhphr
 // from: https://dollchan.net/btb/res/3.html#69
-
-(t>>10^t>>11)%5*((t>>14&3^t>>15&1)+1)*t%99+((3+(t>>14&3)-(t>>16&1))/3\*t%99&64)`}
-client:only
-hz={8000}
+(t>>10^t>>11)%5*((t>>14&3^t>>15&1)+1)*t%99+((3+(t>>14&3)-(t>>16&1))/3*t%99&64)`}
+  client:only
+  hz={8000}
 />
 
 Hit ctrl+enter to update / replay.
