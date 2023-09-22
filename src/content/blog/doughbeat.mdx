@@ -1,0 +1,274 @@
+---
+title: Audio DSP for Noobs
+description: For Live Coding DSP
+date: "2023-09-22"
+tags: ["code"]
+draft: true
+---
+
+import { Doughbeat } from "../../components/worklets/Doughbeat";
+
+In my last 3 posts, I've started to learn how to do DSP on the web:
+
+1. [Making Music with Buffers](https://loophole-letters.netlify.app/buffers/): Pregenerated Buffers
+2. [Real Time Synthesis](https://loophole-letters.netlify.app/real-time-synthesis/): Naively Chaining Buffers
+3. [Real Time Synthesis pt 2](https://loophole-letters.netlify.app/real-time-synthesis2/): Using AudioWorklets
+
+In this post, I want to focus more an actual DSP techniques!
+All of the below examples will use a text field with at least a `dsp` function in it:
+
+<Doughbeat
+  value={`function dsp(t) {
+  return Math.sin(220*t*2*Math.PI)/4
+}`}
+  rows={4}
+  client:only
+/>
+
+This `dsp` function will get called by the audio system 44100 times per second!
+The function has only one argument `t`, which is the time in seconds since the playback started.
+The audio system expects the `dsp` function to return a single number between -1 and 1.
+This number will control the position of the speakers at the time `t`!
+This is all we need to implement any synth or effect we want!
+
+## Oscillators
+
+Here are 4 different oscillators:
+
+<Doughbeat
+  value={`
+let dsp = (t) => sqr(110, t)/4
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t);
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
+
+We can mix oscillators by just adding them:
+
+<Doughbeat
+  value={`
+let dsp = t => (saw(110, t) + saw(111, t))/5
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={2}
+  client:only
+/>
+
+This will create a gritty **phasing** effect!
+
+## Modulation
+
+We can modulate the amplitude by multiplying with another oscillator, giving a so called **tremolo**:
+
+<Doughbeat
+  value={`
+let dsp = t => (saw(110, t) * sin(2, t))/5
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={2}
+  client:only
+/>
+
+That modulation is maybe a bit extreme, let's create some helpers:
+
+<Doughbeat
+  value={`
+let dsp = t => (saw(110, t) * sinmod(2,t,.5,1))/5
+//
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={10}
+  client:only
+/>
+
+Let's modulate the frequency:
+
+<Doughbeat
+  value={`
+let dsp = t => {
+  let f = 110 * sinmod(4,t,.9,1);
+  return sin(f, t)/5;
+}
+//
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={5}
+  client:only
+/>
+
+Hm, something odd is going on here.. I would have expected that the frequency just oscillates between 90 and 110..
+For now, let's leave it like that...
+
+## Sequences
+
+A standing note is rather boring.. We could invent a simple sequence mechanism:
+
+<Doughbeat
+  value={`
+let bassline = [55,55,110,165];
+let dsp = t => {
+  let freq = seq(bassline, 2, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5;
+}
+//
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
+
+## Envelopes
+
+We can create a linear attack by multiplying with a slow sawmod:
+
+<Doughbeat
+  value={`
+let bassline = [55,55,110,165];
+let dsp = t => {
+  let freq = seq(bassline, 2, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5 * sawmod(2,t);
+}
+//
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
+
+...or create decays by inverting the range:
+
+<Doughbeat
+  value={`
+let bassline = [55,55,110,165];
+let dsp = t => {
+  let freq = seq(bassline, 2, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5 * sawmod(2,t,1,0);
+}
+//
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
+
+We could even sequence the envelope speed:
+
+<Doughbeat
+  value={`
+let bassline = [55,55,110,165];
+let dsp = t => {
+  let freq = seq(bassline, 2, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5 * sawmod(seq([2,4],1,t),t,1,0);
+}
+//
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
