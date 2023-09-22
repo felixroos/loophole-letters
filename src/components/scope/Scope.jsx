@@ -26,7 +26,11 @@ export function Scope(props) {
       stop();
     }
   });
-  return <canvas ref={canvas} width={700} height={100} />;
+  return (
+    <div class=" border border-gray-500 rounded-md">
+      <canvas ref={canvas} width={700} height={100} />
+    </div>
+  );
 }
 
 export function drawTimeScope(
