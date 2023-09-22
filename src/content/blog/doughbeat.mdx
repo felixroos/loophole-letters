@@ -46,7 +46,7 @@ let isaw = (f,t) => -saw(f,t);
 let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
-  rows={7}
+  rows={8}
   client:only
 />
 
@@ -63,7 +63,7 @@ let isaw = (f,t) => -saw(f,t)
 let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
-  rows={2}
+  rows={4}
   client:only
 />
 
@@ -84,7 +84,7 @@ let isaw = (f,t) => -saw(f,t)
 let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
-  rows={2}
+  rows={4}
   client:only
 />
 
@@ -159,6 +159,39 @@ let dsp = t => {
 //
 // seq
 let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+//
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  rows={7}
+  client:only
+/>
+
+Instead of typing frequencies, it should be useful to be able to type in midi numbers in semitones:
+
+<Doughbeat
+  value={`
+let midi = n => Math.pow(2, (n - 69) / 12) * 440;
+let bassline = [40,43,47,50].map(midi);
+let dsp = t => {
+  let freq = seq(bassline, 4, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5;
+}
+//
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length];
 // modulation
 const norm = (bipolar) => (bipolar +1)/2;
 const range = (normalized, min, max) => normalized*(max-min)+min;
