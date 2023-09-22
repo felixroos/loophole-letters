@@ -29,8 +29,5 @@
     "date-fns": "^2.30.0",
     "solid-js": "^1.4.3",
     "tailwindcss": "^3.0.24"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-basic-ssl": "^1.0.1"
   }
 }
