@@ -13,6 +13,8 @@ export function Doughbeat(props) {
   function init() {
     if (!ac) {
       ac = new AudioContext();
+    }
+    if (!analyser()) {
       // analyser
       const _analyser = ac.createAnalyser();
       _analyser.fft = 2048;
@@ -24,12 +26,14 @@ export function Doughbeat(props) {
   const stop = async () => {
     worklet?.stop();
     worklet?.node?.disconnect();
+    analyser()?.disconnect();
+    setAnalyser();
     setPlaying(false);
   };
   const update = async () => {
+    stop();
     init();
     await ac.resume();
-    stop();
     worklet = await getDoughbeatWorklet(ac, value());
     worklet.node.connect(ac.destination);
     worklet.node.connect(analyser());

@@ -1,3 +1,5 @@
+import { createEffect, onCleanup } from "solid-js";
+
 export function Scope(props) {
   let canvas, frame, analyserData;
 
@@ -13,7 +15,17 @@ export function Scope(props) {
       frame = requestAnimationFrame(draw);
     });
   }
-  start();
+  function stop() {
+    frame && cancelAnimationFrame(frame);
+  }
+  onCleanup(() => stop());
+  createEffect(() => {
+    if (props.analyser) {
+      start();
+    } else {
+      stop();
+    }
+  });
   return <canvas ref={canvas} width={700} height={100} />;
 }
 
