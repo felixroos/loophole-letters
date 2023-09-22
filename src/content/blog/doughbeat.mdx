@@ -1,5 +1,5 @@
 ---
-title: Audio DSP for Noobs
+title: Audio DSP Level 1
 description: For Live Coding DSP
 date: "2023-09-22"
 tags: ["code"]
@@ -15,6 +15,194 @@ In my last 3 posts, I've started to learn how to do DSP on the web:
 3. [Real Time Synthesis pt 2](https://loophole-letters.netlify.app/real-time-synthesis2/): Using AudioWorklets
 
 In this post, I want to focus more an actual DSP techniques!
+
+This post will start with the absolute basics. There will most likely be more posts building on top of this one.
+
+Mastering the techniques of DSP programming allows you to create anything with audio!
+These techniques are not specific to the web and could be easily transfered to another language.
+Here's an example from someone who already understands how it works:
+
+<Doughbeat
+  rows={8}
+  client:load
+  value={`
+/*!
+ *
+ * stagas - early morning
+ *
+ */
+var bpm = 120;
+var tuning = 440;
+var transpose = 12;
+// constants
+var tau = 2 * Math.PI;
+// time coefficients
+var t, tt;
+// adjust tuning to bpm
+tuning *= 120 / bpm;
+// patterns
+var chords = [
+  [7, 9, 12, 16],
+  [2, 5, 9, 12],
+  [4, 7, 11, 14],
+  [2, 5, 9, 12],
+].map(function(chord){
+  return chord.map(function(n){
+    return note(n);
+  });
+}).reverse();
+var hat_pattern = [
+  0.0, 0.0, 0.5, 0.0,  0.0, 0.0, 0.5, 0.0,
+  0.0, 0.0, 0.5, 0.0,  0.0, 0.0, 0.5, 0.0,
+];
+var plucked = Pluck(60, 0.9, 0.93, 1.0, 0.9);
+var kick_note = note(2, -1);
+var bass_lp = LP2(6200);
+function dsp(t){
+  clock(t);
+  var hat_note = note(9, 1 + tri(1/6) * 2 | 0);
+  var c = sequence(1/8, chords);
+  var noise = Noise();
+  var a = 0.9 * tri(0.01, t / 2 % (1));
+  var b = 0.8 * Math.sin(a * tau * t);
+  var bass_osc =
+    0.1 * sin(c[2 + (Math.floor(sin((1/8) * 2, t)))] * (2 + (Math.floor(tri(1/2, t) * 1))) / 5)
+  + 0.1 * tri(c[2 + (Math.floor(sin((1/4) * 2, t)))] * (2 + (Math.floor(tri(1/4, t) * 1))) * 2)
+  ;
+  bass_osc = bass_lp(bass_osc, 80 + tri(4) * 3);
+  var bass = arp(1/6, bass_osc, 2, 20 + (tri(1/4) * 10));
+  // synth
+  var synth_osc =
+    tri(c[1]/1)
+  + tri(c[2]/1)
+  ;
+  var synth = plucked(arp(1/2, synth_osc, sequence(1/2, [1, 1, 1, 0]) * 85 + (sin(0.5) * 10), 0.3));
+  // drums
+  var hat_osc =
+    0.6 * tri(hat_note)
+  + 0.1 * noise
+  ;
+  var hat =
+    sequence(1/16, hat_pattern)
+  * arp(1/8, hat_osc, 40 + tri(1/4) * 20, 31)
+  ;
+  var kick_osc =
+    1.0 * sin(kick_note)
+  ;
+  var kick = arp(1/4, 51, 45, 3);
+  // mixer
+  return 1 * (
+    0.028 * synth
+  + 0.4 * hat
+  + 0.5 * kick
+  + 0.6 * bass
+  );
+}
+function clock(_t){
+  t = _t;
+  t *= bpm / 120;
+  tt = tau * t;
+}
+function Pluck(length, dry, wet, tail, cutoff){
+  length = length || 40;
+  var lp = LP();
+  var rb = new RingBuffer(length);
+  var sum;
+  return function(sample){
+    sum = rb.reduce(average, sample);
+    sample =
+      dry * sample
+    + wet * lp(sum, cutoff)
+    ;
+    rb.push(sample * tail);
+    return sample;
+  };
+}
+function average(p, n){
+  return (p + n) / 2;
+}
+function sequence(measure, seq){
+  return seq[(t / measure / 2 | 0) % seq.length];
+}
+function arp(measure, x, y, z){
+  var ts = t / 2 % measure;
+  return Math.sin(x * (Math.exp(-ts * y))) * Math.exp(-ts * z);
+}
+function sin(freq, phase){
+  return Math.sin((t * freq + (2 - (phase || 0) / 2)) * tau);
+}
+function saw(freq){
+  return 1-2 * (t % (1 / freq)) * freq;
+}
+function tri(freq){
+  return Math.abs(1 - (2 * t * freq) % 2) * 2 - 1;
+}
+function sqr(freq){
+  return sin(freq, t) > 0 ? 1 : -1;
+}
+function Noise(){
+  return Math.random() * 2 - 1;
+}
+function LP(){
+  var value = 0;
+  return function(x, n){
+    return value += (x - value) / n;
+  };
+}
+function note(n, octave){
+  return Math.pow(2, (
+    n + transpose - 33 + (12 * (octave || 0))
+  ) / 12) * tuning; // A4 tuning
+}
+function RingBuffer(length){
+  this.array = new Float32Array(length);
+  this.length = length;
+  this.pos = 0;
+}
+RingBuffer.prototype.push = function(el){
+  this.array[this.pos++] = el;
+  if (this.pos === this.length) {
+    this.pos = 0;
+  }
+};
+RingBuffer.prototype.forEach = function(fn){
+  var i = this.pos;
+  for (; i < this.length; i++) {
+    fn(this.array[i]);
+  }
+  if (this.pos > 0) {
+    for (i = 0; i < this.pos; i++) {
+      fn(this.array[i]);
+    }
+  }
+};
+RingBuffer.prototype.reduce = function(fn, val){
+  val = val || 0;
+  this.forEach(function(el){
+    val = fn(val, el);
+  });
+  return val;
+};
+function LP2(cutoff){
+  var RC = 1 / (cutoff * 2 * Math.PI);
+  var dt = 1 / 2048;
+  var alpha = dt / (RC + dt);
+  var prev = 0;
+  var curr = 0;
+  return function(freq, x){
+    curr = prev + ( (dt / ( (1/ (freq * 2 * Math.PI)) + dt) ) * (x - prev));
+    prev = curr;
+    return curr;
+  };
+}
+`}
+/>
+
+I am clearly not there yet, so I am eager to learn to someday arrive at that level!
+I've found this example on [wavepot](http://wavepot.com/), which is a web based DSP editor I've just found out about!
+
+## Just a single function
+
 All of the below examples will use a text field with at least a `dsp` function in it:
 
 <Doughbeat
@@ -22,7 +210,7 @@ All of the below examples will use a text field with at least a `dsp` function i
   return Math.sin(220*t*2*Math.PI)/4
 }`}
   rows={4}
-  client:only
+  client:load
 />
 
 This `dsp` function will get called by the audio system 44100 times per second!
@@ -47,7 +235,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={8}
-  client:only
+  client:load
 />
 
 We can mix oscillators by just adding them:
@@ -64,7 +252,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={4}
-  client:only
+  client:load
 />
 
 This will create a gritty **phasing** effect!
@@ -85,7 +273,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={4}
-  client:only
+  client:load
 />
 
 That modulation is maybe a bit extreme, let's create some helpers:
@@ -110,7 +298,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={10}
-  client:only
+  client:load
 />
 
 Let's modulate the frequency:
@@ -138,7 +326,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={5}
-  client:only
+  client:load
 />
 
 Hm, something odd is going on here.. I would have expected that the frequency just oscillates between 90 and 110..
@@ -175,7 +363,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={7}
-  client:only
+  client:load
 />
 
 Instead of typing frequencies, it should be useful to be able to type in midi numbers in semitones:
@@ -208,7 +396,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={7}
-  client:only
+  client:load
 />
 
 ## Envelopes
@@ -241,7 +429,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={7}
-  client:only
+  client:load
 />
 
 ...or create decays by inverting the range:
@@ -272,7 +460,7 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={7}
-  client:only
+  client:load
 />
 
 We could even sequence the envelope speed:
@@ -303,5 +491,183 @@ let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
 let noise = () => Math.random() * 2 - 1
 `}
   rows={7}
-  client:only
+  client:load
+/>
+
+## End of Level
+
+If you've followed along, congrats for completing this Level. The next level will follow soon.
+
+## Credits
+
+After creating the last posts, I've found [wavepot](http://wavepot.com/) (thanks Raphael for the link),
+which inspired the idea to use a seperate `dsp` function instead of writing an expression directly.
+
+The example at the top is also from that page.
+
+## Bonus: Doughbeat
+
+A minimal version of the editor you've seen in this post is also available here: [https://github.com/felixroos/doughbeat](https://github.com/felixroos/doughbeat)
+
+On the github page, there are many more examples with more sophisticated DSP taken from [wavepot](http://wavepot.com/),
+which seems like a great learning resource for the future.
+
+Here is one more example:
+
+<Doughbeat
+  value={`/*!
+ *
+ * stagas - late morning
+ *
+ */
+var bpm = 120;
+var tuning = 440;
+var transpose = 12; // constants
+var tau = 2 * Math.PI; // time coefficients
+var t, tt; // adjust tuning to bpm
+tuning *= 120 / bpm; // patterns
+var chords = [
+  [7, 9, 12, 16],
+  [2, 5, 9, 12],
+  [4, 7, 11, 14],
+  [2, 5, 9, 12],
+]
+  .map(function (chord) {
+    return chord.map(function (n) {
+      return note(n);
+    });
+  })
+  .reverse();
+var hat_pattern = [
+  0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5,
+  0.0,
+];
+var plucked = Pluck(60, 0.9, 0.93, 1.0, 0.9);
+var bass_lp = LP2(6500);
+function dsp(t) {
+  clock(t); // chord
+  var c = sequence(1 / 8, chords); // noise
+  var noise = Noise(); // bass
+  var bass_osc =
+    0.05 *
+      sin(
+        (c[2 + Math.floor(sin((1 / 8) * 2, t))] *
+          (2 + Math.floor(tri(1 / 2, t) * 1))) /
+          5
+      ) +
+    0.07 *
+      tri(
+        c[2 + Math.floor(sin((1 / 4) * 2, t))] *
+          (2 + Math.floor(tri(1 / 4, t) * 1)) *
+          3
+      );
+  bass_osc = bass_lp(bass_osc, 30 + tri(4) * 3);
+  var bass = arp(1 / 6, bass_osc, 2, 10 + tri(1 / 4) * 20); // synth
+  var synth_osc = tri(c[1] / 1) + tri(c[2] / 1);
+  var synth = plucked(
+    arp(1 / 3, synth_osc, sequence(1, [1, 1, 1, 0]) * 45 + sin(0.5) * 10, 0.3)
+  ); // drums
+  var hat_note = note(9, (1 + tri(1 / 6) * 2) | 0);
+  var hat_osc = 0.6 * tri(hat_note) + 0.1 * noise;
+  var hat =
+    sequence(1 / 16, hat_pattern) *
+    arp(1 / 8, hat_osc, 40 + tri(1 / 4) * 20, 31);
+  var kick = arp(1 / 4, 51, 45, 3); // mixer
+  return 1 * (0.034 * synth + 0.5 * hat + 0.5 * kick + 0.13 * bass);
+}
+function clock(_t) {
+  t = _t;
+  t *= bpm / 120;
+  tt = tau * t;
+}
+function Pluck(length, dry, wet, tail, cutoff) {
+  length = length || 40;
+  var lp = LP();
+  var rb = new RingBuffer(length);
+  var sum;
+  return function (sample) {
+    sum = rb.reduce(average, sample);
+    sample = dry * sample + wet * lp(sum, cutoff);
+    rb.push(sample * tail);
+    return sample;
+  };
+}
+function average(p, n) {
+  return (p + n) / 2;
+}
+function sequence(measure, seq) {
+  return seq[((t / measure / 2) | 0) % seq.length];
+}
+function arp(measure, x, y, z) {
+  var ts = (t / 2) % measure;
+  return Math.sin(x * Math.exp(-ts * y)) * Math.exp(-ts * z);
+}
+function sin(freq, phase) {
+  return Math.sin((t * freq + (2 - (phase || 0) / 2)) * tau);
+}
+function saw(freq) {
+  return 1 - 2 * (t % (1 / freq)) * freq;
+}
+function tri(freq) {
+  return Math.abs(1 - ((2 * t * freq) % 2)) * 2 - 1;
+}
+function sqr(freq) {
+  return sin(freq, t) > 0 ? 1 : -1;
+}
+function Noise() {
+  return Math.random() * 2 - 1;
+}
+function LP() {
+  var value = 0;
+  return function (x, n) {
+    return (value += (x - value) / n);
+  };
+}
+function note(n, octave) {
+  return Math.pow(2, (n + transpose - 33 + 12 * (octave || 0)) / 12) * tuning; // A4 tuning
+}
+function RingBuffer(length) {
+  this.array = new Float32Array(length);
+  this.length = length;
+  this.pos = 0;
+}
+RingBuffer.prototype.push = function (el) {
+  this.array[this.pos++] = el;
+  if (this.pos === this.length) {
+    this.pos = 0;
+  }
+};
+RingBuffer.prototype.forEach = function (fn) {
+  var i = this.pos;
+  for (; i < this.length; i++) {
+    fn(this.array[i]);
+  }
+  if (this.pos > 0) {
+    for (i = 0; i < this.pos; i++) {
+      fn(this.array[i]);
+    }
+  }
+};
+RingBuffer.prototype.reduce = function (fn, val) {
+  val = val || 0;
+  this.forEach(function (el) {
+    val = fn(val, el);
+  });
+  return val;
+};
+function LP2(cutoff) {
+  var RC = 1 / (cutoff * 2 * Math.PI);
+  var dt = 1 / 2048;
+  var alpha = dt / (RC + dt);
+  var prev = 0;
+  var curr = 0;
+  return function (freq, x) {
+    curr = prev + (dt / (1 / (freq * 2 * Math.PI) + dt)) * (x - prev);
+    prev = curr;
+    return curr;
+  };
+}
+`}
+  client:load
+  rows={12}
 />

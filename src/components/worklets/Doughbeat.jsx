@@ -80,10 +80,10 @@ export function Doughbeat(props) {
               }
             });
           }}
-          rows={props.rows || 1}
+          rows={props.rows || 4}
         ></textarea>
       </div>
-      <Scope analyser={analyser()} />
+      <Scope analyser={analyser()} options={props.options} />
     </div>
   );
 }
