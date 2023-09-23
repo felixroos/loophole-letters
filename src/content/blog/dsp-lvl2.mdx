@@ -3,7 +3,6 @@ title: Audio DSP Level 2
 description: For Live Coding DSP
 date: "2023-09-23"
 tags: ["code"]
-draft: true
 ---
 
 import { Doughbeat } from "../../components/worklets/Doughbeat";
@@ -12,131 +11,176 @@ import { Waveform } from "../../components/scope/Waveform";
 
 This is level 2 of my DSP journey. [Be sure to read level 1 first](https://loophole-letters.netlify.app/dsp-lvl1/)
 
-## Phase Problems
+## Exponential Saws
 
-In the last level, the oscillators were pure functions, just taking the time as input.
-Most of the time, this will lead to phasing problems sooner or later.
+An exponential saw works like this:
 
-This can be observed in the following example:
-
-export let brokenphase = `
-let freqs = [110,165]
-let dsp = (t) => sin(seq(freqs,4,t), t)/4
-//
-let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-`;
-
-<Doughbeat rows={8} client:load value={brokenphase} client:load rows={5} />
-
-Here, we have a simple 2 note melody that often crackles when the pitch changes.
-If you pay close attention to the waveform, you can sometimes see vertical lines..
-
-To see that better, let's plot the first 500ms as a static image:
-
-<SamplePlot client:only code={brokenphase} />
-
-Here we can clearly a vertical line on the note transition!
-This vertical line will cause the speaker to move very fast, producing a crackle.
-
-But why does this happen? To answer that, let's look at the two pitches as separate plots.
-This is 110Hz (left half):
-
-<SamplePlot
-  client:only
-  code={`
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-let dsp = (t) => sin(110,t)/4`}
-  options={{ color: "green" }}
-/>
-
-... and this is 165Hz (right half):
-
-<SamplePlot
-  client:only
-  code={`
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-let dsp = (t) => sin(165,t)/4`}
-  options={{ color: "red" }}
-/>
-
-Our dsp function effectively switches between those waves: 110Hz for the first and 165Hz for the second half.
-Because both waves are aligned to the left, a change in frequency might cause a value jump.
-
-## Remembering the Phase
-
-We can fix this problem by keeping track of the phase, using state:
-
-export let fixedphase = `let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
+<Doughbeat
+  client:load
+  value={`let dsp = t => {
+  return sawx(110,8,t)/8
 }
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-//
-let freqs = [110,165], c1 = sin();
-let dsp = (t) => c1(seq(freqs,4,t))/4
-let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
-`;
+let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
+`}
+  client:load
+  rows={5}
+  fftSize={2 ** 12}
+/>
 
-<Doughbeat rows={8} client:load value={fixedphase} client:load rows={12} />
+It can either be used as an oscillator, or as a modulator, e.g. as an envelope:
 
-Now, the first 500ms look like this:
+## Hihat
 
-<SamplePlot client:only code={fixedphase} />
+We can create a simple hihat with noise and an exponential saw as envelope:
 
-That looks and sound much better!
+<Doughbeat
+  rows={7}
+  client:load
+  value={`let dsp = t => hihat(4, 20, t)
+let hihat = (f,damp,t) => isawxmod(f,damp,t)/2 * noise()/2
+let norm = (bipolar) => (bipolar +1)/2
+let range = (normalized, min, max) => normalized*(max-min)+min
+let sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
+let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
+let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
+let noise = () => Math.random() * 2 - 1`}
+  client:load
+  fftSize={2 ** 12}
+/>
 
-This also fixes the problem from level 1, where frequency modulation behaved not as expected:
+## Kick
+
+Let's add a kick:
+
+<Doughbeat
+  rows={3}
+  client:load
+  value={`
+let kick = (x,y,t) => Math.sin(x * Math.exp(-t%.5 * y));
+let dsp = t => kick(51, 45, t)/4;
+`}
+  client:load
+  fftSize={2 ** 15}
+/>
+
+It's just a sine wave that starts fast and exponentially gets slower.
+Try tweaking the numbers to get a feel for the different sounds you can get.
+There are a lot more possibilities for kick synthesis, but let's keep it simple for now.
+
+Hihat + Kick:
 
 <Doughbeat
   rows={8}
   client:load
-  value={`let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
-}
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-//
-let c1 = sin(), c2 = sin();
-let dsp = t => {
-  let fm = ((c2(4)+1)/2*.1+.9);
-  let f = 110 * fm;
-  return c1(f)/5;
-}
-`}
+  value={`let dsp = t => (hihat(2, 30, t+.25) + kick(51, 45, t))/4
+let kick = (x,y,t) => Math.sin(x * Math.exp(-t%.5 * y));
+let hihat = (f,damp,t) => isawxmod(f,damp,t)/2 * noise()
+let norm = (bipolar) => (bipolar +1)/2
+let range = (normalized, min, max) => normalized*(max-min)+min
+let sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
+let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
+let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
+let noise = () => Math.random() * 2 - 1`}
   client:load
-  rows={12}
+  rows={6}
+  fftSize={2 ** 12}
 />
 
-Which also unlocks FM sounds:
+Note that the hihat uses `t+.25` to shift the hihat to the offbeat!
+
+Let's add the bass from the last level on top:
+
+<Doughbeat
+  rows={9}
+  client:load
+  value={`
+let bassline = [55,55,110,165];
+let dsp = t => {
+  let freq = seq(bassline, 2, t);
+  let bass = (saw(freq, t) + saw(freq+1, t))/2;
+  return bass/5 * sawmod(seq([2,4],1,t),t+.25,1,0)
++(hihat(2, 30, t+.25) + kick(51, 45, t))/4
+}
+let kick = (x,y,t) => Math.sin(x * Math.exp(-t%.5 * y));
+let hihat = (f,damp,t) => isawxmod(f,damp,t)/2 * noise()
+// seq
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,t,a=0,b=1) => range(norm(sin(f, t)),a,b)
+const sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)
+const sqrmod = (f,t,a=0,b=1) => range(norm(sqr(f, t)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+const sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
+let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
+// oscillators
+let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
+let isaw = (f,t) => -saw(f,t)
+let sqr = (x, t) => sin(x, t) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
+`}
+  client:load
+  fftSize={2 ** 12}
+/>
+
+## Clock
+
+So far, we had to pass `t` to every oscillator function..
+We can instead create a clock function that sets `t` for all functions to use:
 
 <Doughbeat
   rows={8}
   client:load
   value={`
-let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
+let bassline = [55,55,110,165];
+let dsp = t => {
+  clock(t)
+  let freq = seq(bassline, 2);
+  let bass = (saw(freq) + saw(freq+1))/2;
+  return bass/5 * sawmod(seq([2,4],1),.25,1,0)
++(hihat(2, 30, .25) + kick(51, 45))/4
 }
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-let c1 = sqr(), c2 = sin();
-let dsp = (t) => c1(110 * c2(54) * 8) / 12;
+let t;
+function clock(_t){
+  t = _t;
+}
+let kick = (x,y,off=0) => Math.sin(x * Math.exp(-(t+off)%.5 * y));
+let hihat = (f,damp=20,off=0) => isawxmod(f,damp,off)/2 * noise()
+// seq
+let seq = (items, speed, off=0) => items[Math.floor((t+off)*speed)%items.length]
+// modulation
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+const sinmod = (f,off=0,a=0,b=1) => range(norm(sin(f, off)),a,b)
+const sawmod = (f,off=0,a=0,b=1) => range(norm(saw(f, off)),a,b)
+const sqrmod = (f,off=0,a=0,b=1) => range(norm(sqr(f, off)),a,b)
+const noisemod = (a=0,b=1) => range(norm(noise()),a,b)
+const sawxmod = (x,c,off=0,a=0,b=1) => range(norm(sawx(x,c,off)),a,b)
+let isawxmod = (x,c,off=0,a=0,b=1) => range(norm(isawx(x,c,off)),a,b)
+// oscillators
+let sin = (x, off=0) => Math.sin(2 * Math.PI * (t+off) * x)
+let saw = (x, off=0) => ((x * (t+off) % 1) - 0.5) * 2
+let sawx = (x,c,off=0) => (Math.exp(((t+off)*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,off=0) => (Math.exp(-((t+off)*x)%1 * c)-0.5)*2
+let isaw = (f,off=0) => -saw(f,t+off)
+let sqr = (x, off=0) => sin(x, t+off) > 0 ? 1 : -1
+let noise = () => Math.random() * 2 - 1
 `}
   client:load
   rows={12}
+  fftSize={2 ** 12}
 />
+
+The dsp function is now much more concise and readable!
+I found this trick in one of the [wavepot tunes](https://wavepot.com/)
+
+## End of Level
+
+If you've followed along, congrats for completing this level. The next level will follow soon.

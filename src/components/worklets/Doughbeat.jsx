@@ -19,7 +19,7 @@ export function Doughbeat(props) {
     if (!analyser()) {
       // analyser
       const _analyser = ac.createAnalyser();
-      _analyser.fft = 2048;
+      _analyser.fftSize = props.fftSize || 2048;
       analyserData = new Float32Array(_analyser.frequencyBinCount);
       setAnalyser(_analyser);
     }
