@@ -7,7 +7,13 @@ export function Waveform(props) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawWaveform(ctx, props.samples, props.options);
   });
-  return <canvas ref={canvas} width={700} height={100} />;
+  return (
+    <canvas
+      ref={canvas}
+      width={props.width || 700}
+      height={props.height || 100}
+    />
+  );
 }
 
 export function drawWaveform(ctx, samples = [], options = {}) {
@@ -31,7 +37,7 @@ export function drawWaveform(ctx, samples = [], options = {}) {
 
   for (let i = triggerIndex; i < bufferSize; i++) {
     const v = samples[i] + 1;
-    const y = (scale * (v - 1) + pos) * canvas.height;
+    const y = canvas.height - (scale * (v - 1) + pos) * canvas.height;
 
     if (i === 0) {
       ctx.moveTo(x, y);
