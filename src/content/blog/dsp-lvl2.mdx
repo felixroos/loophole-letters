@@ -28,6 +28,15 @@ let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
   fftSize={2 ** 12}
 />
 
+alternative:
+
+```js
+function perc(x, c, t){
+  let ts = (t*x)%1;
+  return  .5-(ts * c) / ((ts * c) + 1)
+}
+```
+
 It can either be used as an oscillator, or as a modulator, e.g. as an envelope:
 
 ## Hihat

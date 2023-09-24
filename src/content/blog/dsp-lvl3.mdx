@@ -12,149 +12,187 @@ import { Waveform } from "../../components/scope/Waveform";
 
 This is level 3 of my DSP journey. Previous Levels: [1](https://loophole-letters.netlify.app/dsp-lvl1/), [2](https://loophole-letters.netlify.app/dsp-lvl2/)
 
-## Phase Problems
+## Filters
 
-In the last levels, the oscillators were pure functions, just taking the time as input.
-Most of the time, this will lead to phasing problems sooner or later.
+Here are some filters I've found in the [wavepot](http://wavepot.com/) examples:
 
-This can be observed in the following example:
-
-export let brokenphase = `
-let freqs = [110,165]
-let dsp = (t) => sin(seq(freqs,4,t), t)/4
-//
-let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-`;
-
-<Doughbeat rows={8} client:load value={brokenphase} client:load rows={5} />
-
-Here, we have a simple 2 note melody that often crackles when the pitch changes.
-If you pay close attention to the waveform, you can sometimes see vertical lines..
-
-To see that better, let's plot the first 500ms as a static image:
-
-<SamplePlot client:only code={brokenphase} />
-
-Here we can clearly a vertical line on the note transition!
-This vertical line will cause the speaker to move very fast, producing a crackle.
-
-But why does this happen? To answer that, let's look at the two pitches as separate plots.
-This is 110Hz (left half):
-
-<SamplePlot
-  client:only
-  code={`
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-let dsp = (t) => sin(110,t)/4`}
-  options={{ color: "green" }}
-/>
-
-... and this is 165Hz (right half):
-
-<SamplePlot
-  client:only
-  code={`
-let sin = (x, t) => Math.sin(2 * Math.PI * t * x)
-let dsp = (t) => sin(165,t)/4`}
-  options={{ color: "red" }}
-/>
-
-Our dsp function effectively switches between those waves: 110Hz for the first and 165Hz for the second half.
-Because both waves are aligned to the left, a change in frequency might cause a value jump.
-
-## Remembering the Phase
-
-We can fix this problem by keeping track of the phase, using state:
-
-export let fixedphase = `let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
-}
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-//
-let freqs = [110,165], c1 = sin();
-let dsp = (t) => c1(seq(freqs,4,t))/4
-let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
-`;
-
-<Doughbeat rows={8} client:load value={fixedphase} client:load rows={12} />
-
-Now, the first 500ms look like this:
-
-<SamplePlot client:only code={fixedphase} />
-
-That looks and sound much better!
-
-This also fixes the problem from level 1, where frequency modulation behaved not as expected:
+FastLP:
 
 <Doughbeat
   rows={8}
   client:load
-  value={`let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
+  value={`let bassline = [55,66,110,220];
+let lp = LP()
+let dsp = (t) => {
+  let freq = seq(bassline, 4, t);
+  let synth = saw(freq, t);
+  return lp(synth, sawmod(4,t,3,100))/8
 }
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-//
-let c1 = sin(), c2 = sin();
-let dsp = t => {
-  let fm = ((c2(4)+1)/2*.1+.9);
-  let f = 110 * fm;
-  return c1(f)/5;
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+function LP() {
+  var value = 0;
+  return (x, n) => value += (x - value) / n;
 }
-`}
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+let sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)`}
   client:load
-  rows={12}
 />
 
-Which also unlocks FM sounds:
+LP2:
 
 <Doughbeat
   rows={8}
   client:load
   value={`
-let st = 1/44100;
-let phasor = (fn, incr) => (f1 = 1, phase = 0) => (f = f1) => {
-    let out = fn(phase);
-    phase += incr(f);
-    return out;
+let bassline = [55,66,110,220];
+let lp = LP()
+let dsp = (t) => {
+  let freq = seq(bassline, 4, t);
+  let synth = saw(freq, t)
+  return lp(synth,sawmod(4,t,3,100))/8
 }
-let { PI, sin: SIN } = Math;
-let sin = phasor(SIN, (f) => 2*PI * f * st)
-let sqr = phasor(p=>p%1>.5?1:-1, (f) => f * st)
-let saw = phasor(p=>(p%1-0.5)*2, (f) => f * st)
-let c1 = sqr(), c2 = sin();
-let dsp = (t) => c1(110 * c2(54) * 8) / 12;
-`}
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+function LP() {
+  let value = 0;
+  return (x, n) => value += (x - value) / n;
+}
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+const norm = (bipolar) => (bipolar +1)/2;
+const range = (normalized, min, max) => normalized*(max-min)+min;
+let sawmod = (f,t,a=0,b=1) => range(norm(saw(f, t)),a,b)`}
   client:load
-  rows={12}
 />
 
-## Waveshape
-
-Trick from zzfx
+Diode Filter:
 
 <Doughbeat
   rows={8}
   client:load
-  value={`
-let dsp = t => {
-  let osc = saw(110,t);
-  let curve = 5;
-  return Math.sign(osc)*Math.abs(osc)**curve / 8
+  value={`let bassline = [55,66,110,220];
+let dsp = (t) => {
+  let freq = seq(bassline, 4, t)
+  let synth = saw(freq, t)
+  let depth = 10;
+  filter.set_fc(0.001 + (-saw(4,t)+1)/depth)
+  synth = filter.run(synth * 0.5);
+  return synth/4;
 }
-let saw = (x,t) => ((x * t % 1) - 0.5) * 2`}
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+class DiodeFilter {
+  constructor() {
+    this.k = 0;
+    this.A = 0;
+    this.z = [0, 0, 0, 0, 0];
+    this.ah;
+    this.bh;
+    this.fc;
+    this.set_q(0);
+    this.set_hpf(0.5);
+    this.set_fc(0.5);
+  }
+  set_hpf(fc) {
+    var K = fc * Math.PI;
+    this.ah = (K - 2) / (K + 2);
+    this.bh = 2 / (K + 2);
+  }
+  reset() {
+    if (this.k < 17) this.z = [0, 0, 0, 0, 0];
+  }
+  set_q(q) {
+    this.k = 20 * q;
+    this.A = 1 + 0.5 * this.k;
+  }
+  set_fc(cutoff) {
+    cutoff = cutoff * cutoff;
+    this.fc = cutoff <= 0 ? 0.02 : cutoff >= 1.0 ? 0.999 : cutoff;
+  }
+  run(x) {
+    var a = Math.PI * this.fc;
+    a = 2 * Math.tan(0.5 * a); // dewarping, not required with 2x oversampling
+    var ainv = 1 / a;
+    var a2 = a * a;
+    var b = 2 * a + 1;
+    var b2 = b * b;
+    var c = 1 / (2 * a2 * a2 - 4 * a2 * b2 + b2 * b2);
+    var g0 = 2 * a2 * a2 * c;
+    var g = g0 * this.bh;
+    // current state
+    var s0 =
+      (a2 * a * this.z[0] +
+        a2 * b * this.z[1] +
+        this.z[2] * (b2 - 2 * a2) * a +
+        this.z[3] * (b2 - 3 * a2) * b) *
+      c;
+    var s = this.bh * s0 - this.z[4];
+    // solve feedback loop (linear)
+    var y5 = (g * x + s) / (1 + g * this.k);
+    // input clipping
+    var y0 = clip(x - this.k * y5);
+    y5 = g * y0 + s;
+    // compute integrator outputs
+    var y4 = g0 * y0 + s0;
+    var y3 = (b * y4 - this.z[3]) * ainv;
+    var y2 = (b * y3 - a * y4 - this.z[2]) * ainv;
+    var y1 = (b * y2 - a * y3 - this.z[1]) * ainv;
+    // update filter state
+    this.z[0] += 4 * a * (y0 - y1 + y2);
+    this.z[1] += 2 * a * (y1 - 2 * y2 + y3);
+    this.z[2] += 2 * a * (y2 - 2 * y3 + y4);
+    this.z[3] += 2 * a * (y3 - 2 * y4);
+    this.z[4] = this.bh * y4 + this.ah * y5;
+    return this.A * y4;
+  }
+}
+var filter = new DiodeFilter();
+filter.set_q(0.66);
+filter.set_hpf(.0007);
+function clip(x){
+  return x / (1 + Math.abs(x));
+}`}
   client:load
-  rows={12}
+/>
+
+Moog Filter:
+
+<Doughbeat
+  rows={8}
+  client:load
+  value={`let bassline = [55,66,110,220];
+let lp = Moog();
+let dsp = (t) => {
+  let freq = seq(bassline, 4, t)
+  let synth = saw(freq, t)
+  let cutoff = (-saw(4,t)+1)*700
+  synth = lp(cutoff, .5, synth)
+  return synth/6;
+}
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+function Moog(){
+  var y1, y2, y3, y4, oldx, oldy1, oldy2, oldy3;
+  y1 = y2 = y3 = y4 = oldx = oldy1 = oldy2 = oldy3 = 0;
+  var p, k, t1, t2, r, x;
+  return function(cutoff, res, input){
+    cutoff = 2 * cutoff / sampleRate;
+    p = cutoff * (1.8 - (0.8 * cutoff));
+    k = 2 * Math.sin(cutoff * Math.PI * 0.5) - 1;
+    t1 = (1 - p) * 1.386249;
+    t2 = 12 + t1 * t1;
+    r = res * (t2 + 6 * t1) / (t2 - 6 * t1);
+    x = input - r * y4;
+    // four cascaded one-pole filters (bilinear transform)
+    y1 =  x * p + oldx  * p - k * y1;
+    y2 = y1 * p + oldy1 * p - k * y2;
+    y3 = y2 * p + oldy2 * p - k * y3;
+    y4 = y3 * p + oldy3 * p - k * y4;
+    // clipper band limited sigmoid
+    y4 -= (y4 * y4 * y4) / 6;
+    oldx = x; oldy1 = y1; oldy2 = y2; oldy3 = y3;
+    return y4;
+  };
+}`}
+  client:load
 />
