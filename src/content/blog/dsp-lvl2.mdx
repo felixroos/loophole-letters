@@ -28,15 +28,6 @@ let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
   fftSize={2 ** 12}
 />
 
-alternative:
-
-```js
-function perc(x, c, t){
-  let ts = (t*x)%1;
-  return  .5-(ts * c) / ((ts * c) + 1)
-}
-```
-
 It can either be used as an oscillator, or as a modulator, e.g. as an envelope:
 
 ## Hihat
@@ -53,6 +44,27 @@ let range = (normalized, min, max) => normalized*(max-min)+min
 let sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
 let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
 let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
+let noise = () => Math.random() * 2 - 1`}
+  client:load
+  fftSize={2 ** 12}
+/>
+
+## Snare
+
+Similarly, a snare can be created with noise + a low sine oscillator:
+
+<Doughbeat
+  rows={7}
+  client:load
+  value={`let dsp = t => snare(2, 20, t)/4
+let snare = (f,damp,t) => (sin(110, t) * 0.3 + noise() * 0.7) * isawxmod(f,damp,t);
+let norm = (bipolar) => (bipolar +1)/2
+let range = (normalized, min, max) => normalized*(max-min)+min
+let sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
+let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
+let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let sin = (x,t) => Math.sin(x*t*2*Math.PI)
 let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
 let noise = () => Math.random() * 2 - 1`}
   client:load
@@ -78,19 +90,21 @@ It's just a sine wave that starts fast and exponentially gets slower.
 Try tweaking the numbers to get a feel for the different sounds you can get.
 There are a lot more possibilities for kick synthesis, but let's keep it simple for now.
 
-Hihat + Kick:
+Kick + Hihat + Snare:
 
 <Doughbeat
   rows={8}
   client:load
-  value={`let dsp = t => (hihat(2, 30, t+.25) + kick(51, 45, t))/4
+  value={`let dsp = t => (hihat(2, 60, t+.25) + kick(51, 45, t) + snare(1,40,t+.5))/4
 let kick = (x,y,t) => Math.sin(x * Math.exp(-t%.5 * y));
 let hihat = (f,damp,t) => isawxmod(f,damp,t)/2 * noise()
+let snare = (f,damp,t) => (sin(110, t) * 0.3 + noise() * 0.7) * isawxmod(f,damp,t)
 let norm = (bipolar) => (bipolar +1)/2
 let range = (normalized, min, max) => normalized*(max-min)+min
 let sawxmod = (x,c,t,a=0,b=1) => range(norm(sawx(x,c,t)),a,b)
 let isawxmod = (x,c,t,a=0,b=1) => range(norm(isawx(x,c,t)),a,b)
 let sawx = (x,c,t) => (Math.exp((t*x)%1 * c - c)-0.5)*2
+let sin = (x,t) => Math.sin(x*t*2*Math.PI)
 let isawx = (x,c,t) => (Math.exp(-(t*x)%1 * c)-0.5)*2
 let noise = () => Math.random() * 2 - 1`}
   client:load
@@ -98,7 +112,7 @@ let noise = () => Math.random() * 2 - 1`}
   fftSize={2 ** 12}
 />
 
-Note that the hihat uses `t+.25` to shift the hihat to the offbeat!
+Note that the hihat uses `t+.25` to shift the hihat to the offbeat! Similarly, the snare is shifted with `+.5`.
 
 Let's add the bass from the last level on top:
 
