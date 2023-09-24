@@ -114,7 +114,7 @@ export async function getDoughbeatWorklet(ac, code) {
     for (let i = 0; i < output[0].length; i++) {
       const out = (dsp)(this.t / ${ac.sampleRate});
       output.forEach((channel) => {
-        channel[i] = out;
+        channel[i] = Math.max(-1, Math.min(1,out)); // safety clamp
       });
       this.t++;
     }
