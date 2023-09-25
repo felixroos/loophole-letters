@@ -167,3 +167,45 @@ function perc(x, c, t) {
   return 0.5 - (ts * c) / (ts * c + 1);
 }
 ```
+
+wavepot Moog Filter (breaks for higher cutoffs...)
+
+<Doughbeat
+  rows={8}
+  client:load
+  value={`let bassline = [55,66,110,220];
+let lp = Moog();
+let dsp = (t) => {
+  let freq = seq(bassline, 4, t)
+  let synth = saw(freq, t)
+  let cutoff = (-saw(4,t)+1)*700
+  synth = lp(cutoff, .5, synth)
+  return synth/6;
+}
+let seq = (items, speed, t) => items[Math.floor(t*speed)%items.length]
+let saw = (x, t) => ((x * t % 1) - 0.5) * 2
+function Moog(){
+  var y1, y2, y3, y4, oldx, oldy1, oldy2, oldy3;
+  y1 = y2 = y3 = y4 = oldx = oldy1 = oldy2 = oldy3 = 0;
+  var p, k, t1, t2, r, x;
+  return function(cutoff, res, input){
+    cutoff = 2 * cutoff / sampleRate;
+    p = cutoff * (1.8 - (0.8 * cutoff));
+    k = 2 * Math.sin(cutoff * Math.PI * 0.5) - 1;
+    t1 = (1 - p) * 1.386249;
+    t2 = 12 + t1 * t1;
+    r = res * (t2 + 6 * t1) / (t2 - 6 * t1);
+    x = input - r * y4;
+    // four cascaded one-pole filters (bilinear transform)
+    y1 =  x * p + oldx  * p - k * y1;
+    y2 = y1 * p + oldy1 * p - k * y2;
+    y3 = y2 * p + oldy2 * p - k * y3;
+    y4 = y3 * p + oldy3 * p - k * y4;
+    // clipper band limited sigmoid
+    y4 -= (y4 * y4 * y4) / 6;
+    oldx = x; oldy1 = y1; oldy2 = y2; oldy3 = y3;
+    return y4;
+  };
+}`}
+  client:load
+/>
