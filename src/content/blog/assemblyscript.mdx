@@ -1,11 +1,131 @@
 ---
-title: Trying AssemblyScript
+title: Running AssemblyScript on the Web
 description: ""
-date: "2023-09-11"
+date: "2023-10-19"
 tags: ["code"]
-draft: true
 ---
 
 import { AssemblyScript } from "../../components/asc/AssemblyScript.jsx";
+import { JsEval } from "../../components/lua/JsEval.jsx";
 
-<AssemblyScript client:only />
+After [running Lua on the Web](/lua-wasmoon/), let's try a faster alternative: [AssemblyScript](https://www.assemblyscript.org/).
+
+While lua scripts are interpreted by a wasm program, AssemblyScript programs directly compile to wasm, which should make them significantly faster.
+
+## Compilation
+
+After some tinkering, reading [the compiler docs](https://www.assemblyscript.org/compiler.html) + taking some bits from [javascriptmusic](https://github.com/petersalomonsen/javascriptmusic/blob/d9aa076a02fc3506665c16b88676f51e44d7549d/wasmaudioworklet/synth1/browsercompilerwebworker.js#L142) (which btw inspired this whole idea), I've found this function to compile AssemblyScript code:
+
+```js
+async function compileAssemblyScript(code) {
+  const output = Object.create({
+    stdout: asc.createMemoryStream(),
+    stderr: asc.createMemoryStream(),
+  });
+  const sources = {
+    "index.ts": code,
+  };
+  const { error } = await asc.main(
+    ["--outFile", "binary", "--textFile", "text", "index.ts"],
+    {
+      stdout: output.stdout,
+      stderr: output.stderr,
+      readFile: (name) => (sources.hasOwnProperty(name) ? sources[name] : null),
+      writeFile: (name, contents) => (output[name] = contents),
+      listFiles: () => [],
+    }
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  return output;
+}
+```
+
+The above function outputs an object with a `.binary`, where the web assembly binary is located as a buffer.
+We can instantiate that using the browser method
+
+```js
+const output = await compileAssemblyScript(`
+function fib(n: i32): i32 {
+  if(n<2) {
+    return 1;
+  }
+  return fib(n-1) + fib(n-2);
+}
+export function main(): i32 {
+  return fib(36)
+}
+`);
+const wasm = await WebAssembly.instantiate(output.binary, {});
+const main = wasm.instance.exports.main;
+console.log(main()); // 24157817
+```
+
+With this knowledge, creating an AssemblyScript REPL is possible:
+
+<AssemblyScript
+  client:only
+  value={`
+function fib(n: i32): i32 {
+  if(n<2) {
+    return 1;
+  }
+  return fib(n-1) + fib(n-2);
+}
+export function main(): i32 {
+  return fib(40)
+}
+`}
+  rows={12}
+/>
+
+This seems to run quite fast!
+
+## Versus JavaScript
+
+Let's compare it to the JavaScript:
+
+<JsEval
+  client:load
+  value={`
+function fib(n) {
+  if(n<2) return 1
+  return fib(n-1)+fib(n-2)
+}
+fib(40)
+`}
+  rows={8}
+/>
+
+Not really surprising, but still great to see that AssemblyScript is faster!
+For lower values of n, it's slower, but that is only because the compilation takes a bit of time.
+The actual script execution is way faster.
+
+And yes, of course there are faster fibonacci implementations, but that's not the point:
+
+<AssemblyScript
+  client:only
+  value={`
+export function fib(n: i32): i32 {
+  var a = 0, b = 1
+  if (n > 0) {
+    while (--n) {
+      let t = a + b
+      a = b
+      b = t
+    }
+    return b
+  }
+  return a
+}
+export function main(): i32 {
+  return fib(40)
+}
+`}
+  rows={12}
+/>
+
+I am eager to try out writing DSP with AssemblyScript, which should pair nicely with AudioWorklet,
+to create faster-than-javascript performance!
+Thanks to [Peter Salomonsen's javascriptmusic](https://github.com/petersalomonsen/javascriptmusic) for inspiring the idea.

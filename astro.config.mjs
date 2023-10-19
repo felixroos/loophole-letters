@@ -11,4 +11,9 @@ export default defineConfig({
   },
   site: "https://loophole-letters.netlify.app",
   integrations: [mdx(), sitemap(), tailwind(), solidJs()],
+  vite: {
+    optimizeDeps: {
+      exclude: ["assemblyscript"],
+    },
+  },
 });
