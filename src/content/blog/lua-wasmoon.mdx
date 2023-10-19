@@ -1,0 +1,86 @@
+---
+title: Running LUA on the Web
+description: ""
+date: "2023-10-19"
+tags: ["code"]
+---
+
+Let's try to run lua in the browser!
+I've found [wasmoon](https://github.com/ceifa/wasmoon) to be a viable solution (next fo [fengari](https://fengari.io/)).
+
+It's quite easy to get a Lua evaluator running:
+
+```js
+const factory = new LuaFactory();
+const lua = await factory.createEngine();
+const code = `
+function multiply(x, y)
+  return x * y
+end
+function main()
+  print("Hello!")
+  return multiply(10, 11)
+end
+`;
+await lua.doString(code);
+const main = lua.global.get("main");
+const result = main();
+console.log(result);
+```
+
+Let's drop this into a component to be able to live code with lua:
+
+import { Lua } from "../../components/lua/Lua.jsx";
+import { JsEval } from "../../components/lua/JsEval.jsx";
+
+<Lua
+  client:load
+  value={`
+function multiply(x, y)
+  return x * y
+end
+function main()
+  print("Hello!")
+  return multiply(10, 11)
+end
+`}
+  rows={8}
+/>
+
+You can also run the code with ctrl+enter!
+
+## Fibonacci comparison
+
+Let's compare the runtimes of Lua and JS, using fibonacci:
+
+<Lua
+  client:load
+  value={`
+function fib(n)
+  if(n<2) then return 1 end
+  return fib(n-1)+fib(n-2)
+end
+function main()
+  return fib(36)
+end
+`}
+  rows={8}
+/>
+
+In JavaScript:
+
+<JsEval
+  client:load
+  value={`
+function fib(n) {
+  if(n<2) return 1
+  return fib(n-1)+fib(n-2)
+}
+fib(36)
+`}
+  rows={8}
+/>
+
+It looks like Lua is significantly slower than JS. I know this is not a full benchmark, blabla.
+
+That's already it, I might do some more Lua stuff in the future. Bye

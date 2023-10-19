@@ -28,6 +28,7 @@
     "d3-scale": "^4.0.2",
     "date-fns": "^2.30.0",
     "solid-js": "^1.4.3",
-    "tailwindcss": "^3.0.24"
+    "tailwindcss": "^3.0.24",
+    "wasmoon": "^1.15.0"
   }
 }
