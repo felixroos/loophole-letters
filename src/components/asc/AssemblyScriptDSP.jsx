@@ -53,9 +53,13 @@ export function AssemblyScriptDSP(props) {
     await init();
     await ac.resume();
     setActiveCode(code());
-    const output = await compileAssemblyScript(code(), props.files);
-    worklet.port.postMessage({ webassembly: output.binary });
-    setPlaying(true);
+    try {
+      const output = await compileAssemblyScript(code(), props.files);
+      worklet.port.postMessage({ webassembly: output.binary });
+      setPlaying(true);
+    } catch (err) {
+      console.error(err.message);
+    }
   };
 
   return (

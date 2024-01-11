@@ -24,8 +24,8 @@ export async function compileAssemblyScript(
     }
   );
   if (error) {
-    console.error(error);
-    throw new Error(error.message);
+    const message = `${error.message}: ${output.stderr.toString()}`;
+    throw new Error(message);
   }
   return output;
 }
