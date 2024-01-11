@@ -1,0 +1,107 @@
+---
+title: Live Coding DSP with AssemblyScript
+description: ""
+date: "2023-10-19"
+tags: ["code"]
+---
+
+import { AssemblyScript } from "../../components/asc/AssemblyScript.jsx";
+import { AssemblyScriptDSP } from "../../components/asc/AssemblyScriptDSP.jsx";
+
+In the [last post](/assemblyscript/), I found out how to compile and run [AssemblyScript](https://www.assemblyscript.org/) on the client side of the browser.
+I've also dug into [how AudioWorklets work](/real-time-synthesis2/), using JavaScript to write the DSP.
+The obvious next step would be to use AssemblyScript instead of JavaScript to run the DSP, which is much more performant.
+
+We need 3 parts:
+
+- An interactive editor to write DSP code
+- A compiler that turns the code into bytecode
+- An AudioWorklet that takes the bytecode and renders audio samples
+
+Luckily, I've already written all these parts in isolation in the lasts posts, so I only need to find out how to combine them properly!
+
+Here's the end result (might be loud):
+
+<AssemblyScriptDSP
+  value={`function saw(f: f32, t: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+export function dsp(t: f32): f32 {
+  return (saw(110, t) + saw(111, t))/4
+}`}
+  client:only
+  rows={7}
+  fftSize={2 ** 12}
+/>
+
+## From WASM to AudioWorklet
+
+In my [post about AudioWorklets](/real-time-synthesis2/), I've taken a string of javascript and created an audioworklet on every evaluation.
+With WASM, this is not needed anymore, as the worklet should not change, just the bytecode that generates the samples. This is what I came up with:
+
+```js
+// worklet.js
+class DSPProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.t = 0; // samples passed
+    this.port.onmessage = (e) => {
+      const key = Object.keys(e.data)[0];
+      const value = e.data[key];
+      switch (key) {
+        case "webassembly":
+          WebAssembly.instantiate(value, {
+            environment: { SAMPLERATE: globalThis.sampleRate },
+          }).then((result) => {
+            this.api = result.instance.exports;
+            this.port.postMessage("OK");
+          });
+          break;
+      }
+    };
+  }
+  process(inputs, outputs, parameters) {
+    if (this.api) {
+      const output = outputs[0];
+      for (let i = 0; i < output[0].length; i++) {
+        let out = this.api.dsp(this.t / globalThis.sampleRate);
+        output.forEach((channel) => {
+          channel[i] = out;
+        });
+        this.t++;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("dsp-processor", DSPProcessor);
+```
+
+The `process` method is pretty much identical to my previous AudioWorklet code, what's more interesting is the `onmessage` handler.
+The handler waits for a message of the format `{ webassembly: '...' }` which is used to create a `WebAssembly`.
+A `WebAssembly` instance always has `exports`, which are all the functions that are exported from the compiled language.
+We just take all these exports and throw them into `this.api`.
+Like in my DSP posts, we're only expecting a `dsp` function to be exported, which is used in the `process` function below.
+
+I will spare you the details of the editor, as it pretty much identical to the last one, but feel free to [read the source](https://github.com/felixroos/loophole-letters/tree/main/src/components/asc).
+
+## Inspiration
+
+I got the idea to use AssemblyScript for DSP from [Peter Salomonsen and his WebAssembly Music Project](https://www.youtube.com/watch?v=C8j_ieOm4vE), you should check it out!
+In the upcoming posts, I will look at the DSP he has implemented in more detail, using my newly implemented editor!
+
+import { Synth1 } from "../../components/asc/Synth1.jsx";
+
+<Synth1
+  client:only
+  value={`import { DeepBass } from './instruments/bass/deepbass';
+//
+const deepbass = new DeepBass();
+//
+export function dsp(t: f32): f32 {
+  deepbass.note = (t*2%24)+36.0;
+  deepbass.next();
+  return deepbass.signal.left / 4;
+}`}
+  rows={10}
+/>
