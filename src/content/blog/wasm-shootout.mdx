@@ -1,0 +1,65 @@
+---
+title: WASM DSP Shootout
+description: "Comparing different languages targetting WASM for DSP"
+date: "2024-01-23"
+tags: ["code"]
+draft: true
+---
+
+import { WasmSynth } from "../../components/wasmsynth/WasmSynth";
+
+## C
+
+import csaw from "../../components/wasmsynth/csaw.wasm?url";
+
+<WasmSynth
+  client:only
+  file={csaw}
+  code={`#include <math.h>
+#include <emscripten.h>
+EMSCRIPTEN_KEEPALIVE
+double saw(double t, double f) {
+    return fmod((f * t * 1.0), 1.0) - 0.5 * 2.0;
+}
+`}
+/>
+
+## Zig
+
+import zigsaw from "../../components/wasmsynth/zigsaw.wasm?url";
+
+<WasmSynth
+  client:only
+  file={zigsaw}
+  code={`const std = @import("std");
+export fn saw(t: f64, f: f64) f64 {
+    return ((@mod(f * t, 1.0)) - 0.5) * 2.0;
+}`}
+/>
+
+## Rust
+
+import rustsaw from "../../components/wasmsynth/rustsaw.wasm?url";
+
+<WasmSynth
+  client:only
+  file={rustsaw}
+  code={`use wasm_bindgen::prelude::*;
+#[wasm_bindgen]
+pub fn saw(t: f64, f: f64) -> f64 {
+    return (((f * t * 1.0) % 1.0) - 0.5) * 2.0;
+}
+`}
+/>
+
+## AssemblyScript
+
+import ascsaw from "../../components/wasmsynth/ascsaw.wasm?url";
+
+<WasmSynth
+  client:only
+  file={ascsaw}
+  code={`export function saw(t: f64, f: f64): f64 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 2.0;
+}`}
+/>

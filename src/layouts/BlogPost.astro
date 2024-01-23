@@ -2,6 +2,7 @@
 import type { CollectionEntry } from "astro:content";
 import Tag from "../components/Tag.astro";
 import FormattedDate from "../components/FormattedDate.astro";
+import { format } from "date-fns";
 
 type Props = CollectionEntry<"blog">["data"];
 
@@ -21,7 +22,9 @@ const { title, date, tags } = Astro.props;
       </div>
     </div>
     <p class="italic p-0 m-0">
-      <FormattedDate date={date} />
+      <time datetime={date.toISOString()}>
+        {format(date, "MMMM yyyy")}
+      </time>
     </p>
   </div>
   <div>
