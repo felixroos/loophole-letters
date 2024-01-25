@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { initEditor } from "../codemirror/codemirror.mjs";
 
 export function CodeRunner(props) {
   const [code, setCode] = createSignal(props.value?.trim() || "");
@@ -28,7 +29,19 @@ export function CodeRunner(props) {
           </button>
         </div>
         <div class="flex flex-col w-full">
-          <textarea
+          <div
+            class="grow rounded-md w-full max-w-full overflow-hidden h-full outline-none focus:outline-none focus:ring-0 focus:border-gray-500"
+            ref={(el) =>
+              initEditor({
+                root: el,
+                initialCode: code(),
+                onChange: setCode,
+                onEvaluate: () => run(),
+                // onStop: () => stop(),
+              })
+            }
+          ></div>
+          {/*  <textarea
             spellCheck={false}
             class="grow rounded-md w-full outline-none focus:outline-none focus:ring-0 focus:border-gray-500"
             value={code()}
@@ -41,7 +54,7 @@ export function CodeRunner(props) {
               });
             }}
             rows={props.rows || 4}
-          />
+          /> */}
           <div>
             <div class="flex justify-between w-full">
               <pre>{!error() ? result() : ""}</pre>

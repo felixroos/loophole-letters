@@ -2,6 +2,8 @@ import { createSignal } from "solid-js";
 // import workletsUrl from "../../lib/worklets/sine-processor?url";
 import { getDoughbeatWorklet } from "../../lib/worklets/dynamic-worklet";
 import { Scope } from "../scope/Scope";
+import { initEditor } from "../codemirror/codemirror.mjs";
+import { Codemirror } from "../codemirror/Codemirror.jsx";
 
 export function Doughbeat(props) {
   const [code, setCode] = createSignal(props.value?.trim() || "");
@@ -66,22 +68,14 @@ export function Doughbeat(props) {
             </button>
           )}
         </div>
-        <textarea
-          spellCheck={false}
-          class="grow rounded-md w-full outline-none focus:outline-none focus:ring-0 focus:border-gray-500"
-          value={code()}
-          onInput={(e) => setCode(e.target.value)}
-          ref={(el) => {
-            el.addEventListener("keydown", (e) => {
-              if (e.ctrlKey && e.code === "Enter") {
-                update();
-              } else if (e.ctrlKey && e.key === ".") {
-                stop();
-              }
-            });
+        <Codemirror
+          {...{
+            initialCode: code(),
+            onChange: setCode,
+            onEvaluate: () => update(),
+            onStop: () => stop(),
           }}
-          rows={props.rows || 4}
-        ></textarea>
+        />
       </div>
       <Scope analyser={analyser()} options={props.options} />
     </div>

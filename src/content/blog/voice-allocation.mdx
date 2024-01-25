@@ -1,0 +1,47 @@
+---
+title: Voice Allocation
+description: ""
+date: "2024-01-24"
+tags: ["code"]
+draft: true
+---
+
+import { AssemblyScript } from "../../components/asc/AssemblyScript.jsx";
+import { VoiceAllocator } from "../../components/asc/VoiceAllocator.jsx";
+
+voice allocation:
+
+<VoiceAllocator
+  value={`import { log, Voice, saw, sin, 
+  DeepBassVoice, BrassyLeadVoice, SoftPadVoice, FlatPadVoice, EftangVoice, SineLeadVoice, SawBass3Voice, DriveLeadVoice, SawBassVoice, SquareLeadVoice, } from './dough.ts'
+// create voices
+export const numvoices = 8;
+export const voices = new StaticArray<Voice>(numvoices);
+for (let n = 0; n < numvoices; n++) {
+  voices[n] = new SoftPadVoice(0, 0)
+}
+export function midiNote(note: f32, velocity: i32): void {
+  log(\`note: \${note}, velocity: \${velocity}\`)
+  for (let n = 0; n < numvoices; n++) {
+    if (voices[n].playsNote(note) && velocity === 0) {
+      log(\`free \${n}\`)
+      voices[n].free();
+    } else if (voices[n].isFree() && velocity > 0) {
+      log(\`allocate \${n}\`)
+      voices[n].allocate(note, velocity)
+      break;
+    }
+  }
+}
+export function dsp(t: f32): f32 {
+  let s: f32 = 0;
+  for (let n = 0; n < numvoices; n++) {
+    s += voices[n].next()
+  }
+  return s / 4;
+}
+`}
+  client:only
+  rows={16}
+  fftSize={2 ** 12}
+/>

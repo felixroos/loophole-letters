@@ -2,14 +2,58 @@ import { createSignal } from "solid-js";
 import { compileAssemblyScript } from "./compiler";
 import workletCode from "./worklet?raw";
 import { Scope } from "../scope/Scope";
+import dough from "./dough/dough?raw";
+import sources from "./synth1";
 import { initEditor } from "../codemirror/codemirror.mjs";
 
-export function AssemblyScriptDSP(props) {
+function enableMidi() {
+  return new Promise((resolve, reject) => {
+    navigator.requestMIDIAccess().then(resolve, reject);
+  });
+}
+
+export function VoiceAllocator(props) {
   const [code, setCode] = createSignal(props.value?.trim() || "");
   const [activeCode, setActiveCode] = createSignal(props.value?.trim() || "");
   const canUpdate = () => activeCode() !== code();
   const [playing, setPlaying] = createSignal(false);
   const [analyser, setAnalyser] = createSignal();
+  const [midiInputs, setMidiInputs] = createSignal([]);
+  const [selectedMidiInput, setSelectedMidiInput] = createSignal(null);
+
+  const selectMidiInput = (id) => {
+    console.log("select", id);
+    const match = midiInputs().find((input) => input.id === id);
+    setSelectedMidiInput(match);
+  };
+
+  enableMidi()
+    .then((res) => {
+      const inputs = Object.values(Object.fromEntries(res.inputs));
+      console.log("midi ready", inputs);
+      if (!inputs.length) {
+        return;
+      }
+      setMidiInputs(inputs);
+      selectMidiInput(inputs[0].id);
+      inputs.forEach((entry) => {
+        entry.onmidimessage = (msg) => {
+          const msgType = msg.data[0] & 0xf0;
+          if (msgType === 0x90 || msgType === 0x80) {
+            const note = msg.data[1];
+            const velocity = msgType === 0x80 ? 0 : msg.data[2];
+            //processNoteMessage(note, velocity);
+            worklet?.port.postMessage({ note, velocity });
+          } else {
+            console.log("onmidi");
+            //onmidi([msgType + channel, msg.data[1], msg.data[2]]);
+          }
+        };
+      });
+    })
+    .catch((err) => {
+      console.log("midi err", err);
+    });
 
   let worklet, ac, analyserData;
   async function init() {
@@ -52,7 +96,12 @@ export function AssemblyScriptDSP(props) {
     await ac.resume();
     setActiveCode(code());
     try {
-      const output = await compileAssemblyScript(code(), props.files);
+      console.log("compile...");
+      const output = await compileAssemblyScript(code(), {
+        ...sources,
+        "dough.ts": dough,
+      });
+      console.log("compiled!");
       worklet.port.postMessage({ webassembly: output.binary });
       setPlaying(true);
     } catch (err) {
@@ -97,6 +146,13 @@ export function AssemblyScriptDSP(props) {
           }
         ></div>
       </div>
+      {selectedMidiInput() && midiInputs()?.length && (
+        <select value={selectedMidiInput().id} onChange={selectMidiInput}>
+          {midiInputs().map((input) => (
+            <option value={input.id}>{input.name}</option>
+          ))}
+        </select>
+      )}
       <Scope analyser={analyser()} options={props.options} />
     </div>
   );
