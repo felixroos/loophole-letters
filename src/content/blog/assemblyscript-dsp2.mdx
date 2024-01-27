@@ -1,0 +1,250 @@
+---
+title: AssemblyScript DSP Part 2
+description: ""
+date: "2024-01-27"
+tags: ["code"]
+draft: true
+---
+
+import { AssemblyScript } from "../../components/asc/AssemblyScript.jsx";
+import { AssemblyScriptDSP2 } from "../../components/asc/AssemblyScriptDSP2.jsx";
+
+Previously:
+
+- [Running AssemblyScript on the Web](/assemblyscript/)
+- [Live Coding DSP with AssemblyScript](/assemblyscript-dsp/)
+
+In this post, I want to improve a few things:
+
+- Do not iterate over samples with javascript, process the whole block in WASM land.
+- Use the buffer from WASM memory
+- Make it Stereo
+
+## Block Processing
+
+Previously, I'd let JS loop over the samples and call the WASM-exported `dsp` for each sample:
+
+```js
+// worklet.js
+class DSPProcessor extends AudioWorkletProcessor {
+  /** */
+  WebAssembly.instantiate(value /** */).then((result) => {
+    this.wasmInstance = result.instance.exports;
+  });
+  process(inputs, outputs, parameters) {
+    if (this.wasmInstance) {
+      const output = outputs[0];
+      for (let i = 0; i < output[0].length; i++) {
+        let out = this.wasmInstance.dsp(this.t / globalThis.sampleRate);
+        output.forEach((channel) => {
+          channel[i] = out;
+        });
+        this.t++;
+      }
+    }
+    return true;
+  }
+}
+```
+
+This code expected the WASM to export `dsp` function. Let's replace that with:
+
+```js
+// worklet2.js
+class DSPProcessor extends AudioWorkletProcessor {
+  constructor() {
+    /** */
+    WebAssembly.instantiate(value /** */).then((r) => {
+      this.wasmInstance = result.instance.exports;
+      this.outputBuffer = new Float32Array(
+        this.wasmInstance.memory.buffer,
+        this.wasmInstance.getOutputBuffer(), // <-- get pointer to output buffer
+        SAMPLE_FRAMES
+      );
+    });
+  }
+  process(inputs, outputs, parameters) {
+    if (this.wasmInstance) {
+      const output = outputs[0];
+      // call wasm to fill the buffer
+      this.wasmInstance.block(globalThis.currentFrame);
+      // fill each output channel with the new buffer
+      for (let c = 0; c < output.length; c++) {
+        channel.set(this.outputBuffer);
+      }
+    }
+    return true;
+  }
+}
+```
+
+Here, we expect the WASM to export `block` and `getOutputBuffer`. The AssemblyScript to do that could look like this:
+
+```ts
+function saw(f: f32, t: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+export function dsp(t: f32): f32 {
+  return (saw(110, t) + saw(111, t)) / 4;
+}
+//
+export const output = new StaticArray<f32>(128);
+export function getOutputBuffer(): StaticArray<f32> {
+  return output;
+}
+export function block(t1: i32, t2: i32): void {
+  for (let t = t1; t < t2; t++) {
+    const i = t - t1;
+    output[i] = dsp((t as f32) / 44100.0);
+  }
+}
+```
+
+Because the stuff below `dsp` is pretty generic, we can define it outside of user land.
+This will leave us the exact same API as before, but now javascript is only plumbing the block buffers instead of running over individual samples!
+
+<AssemblyScriptDSP2
+  value={`function saw(f: f32, t: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+export function dsp(t: f32, i: f32): Array<f32> {
+  return [saw(110,t)/2,saw(111,t)/2]
+}`}
+  client:only
+  rows={7}
+  fftSize={2 ** 12}
+/>
+
+## From WASM to AudioWorklet
+
+In my [post about AudioWorklets](/real-time-synthesis2/), I've taken a string of javascript and created an audioworklet on every evaluation.
+With WASM, this is not needed anymore, as the worklet should not change, just the bytecode that generates the samples. This is what I came up with:
+
+```js
+// worklet.js
+class DSPProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.t = 0; // samples passed
+    this.port.onmessage = (e) => {
+      const key = Object.keys(e.data)[0];
+      const value = e.data[key];
+      switch (key) {
+        case "webassembly":
+          WebAssembly.instantiate(value, {
+            environment: { SAMPLERATE: globalThis.sampleRate },
+          }).then((result) => {
+            this.api = result.instance.exports;
+            this.port.postMessage("OK");
+          });
+          break;
+      }
+    };
+  }
+  process(inputs, outputs, parameters) {
+    if (this.api) {
+      const output = outputs[0];
+      for (let i = 0; i < output[0].length; i++) {
+        let out = this.api.dsp(this.t / globalThis.sampleRate);
+        output.forEach((channel) => {
+          channel[i] = out;
+        });
+        this.t++;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("dsp-processor", DSPProcessor);
+```
+
+The `process` method is pretty much identical to my previous AudioWorklet code, what's more interesting is the `onmessage` handler.
+The handler waits for a message of the format `{ webassembly: '...' }` which is used to create a `WebAssembly`.
+A `WebAssembly` instance always has `exports`, which are all the functions that are exported from the compiled language.
+We just take all these exports and throw them into `this.api`.
+Like in my DSP posts, we're only expecting a `dsp` function to be exported, which is used in the `process` function below.
+
+I will spare you the details of the editor, as it pretty much identical to the last one, but feel free to [read the source](https://github.com/felixroos/loophole-letters/tree/main/src/components/asc).
+
+## Inspiration
+
+I got the idea to use AssemblyScript for DSP from [Peter Salomonsen and his WebAssembly Music Project](https://www.youtube.com/watch?v=C8j_ieOm4vE), you should check it out!
+In the upcoming posts, I will look at the DSP he has implemented in more detail, using my newly implemented editor!
+
+<AssemblyScriptDSP2
+  client:only
+  value={`import { DeepBass } from './instruments/bass/deepbass';
+//
+const deepbass = new DeepBass();
+//
+export function dsp(t: f32): Array<f32> {
+  deepbass.note = (t*2%24)+36.0;
+  deepbass.next();
+  return [deepbass.signal.left/4, deepbass.signal.right/4];
+}`}
+  rows={10}
+/>
+
+multichannel expansion
+
+```ts
+let t: f32 = 0.0;
+function clock(_t: f32): void {
+  t = _t;
+}
+function _saw(f: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+function saw(f: Array<f32>): f32 {
+  let out: f32 = 0.0;
+  for (let i = 0; i < f.length; i++) {
+    out += _saw(f[i]);
+  }
+  return out;
+}
+export function dsp(t: f32, i: f32): Array<f32> {
+  clock(t);
+  return [
+    saw([110, 56.12, 220.5]) / 8,
+    saw([111.04, 55.045, 221.45, 330.2345, 441.12345, 550, 662, 880, 1769.2]) /
+      8,
+  ];
+}
+```
+
+...without mixdown:
+
+```js
+let t: f32 = 0.0;
+function clock(_t: f32): void {
+  t = _t;
+}
+function _saw(f: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+function saw(f: Array<f32>): Array<f32> {
+  for (let i = 0; i < f.length; i++) {
+    f[i] = _saw(f[i]);
+  }
+  return f;
+}
+export function dsp(t: f32, i: f32): Array<f32> {
+  clock(t);
+  return saw([110, 56.12]);
+}
+```
+
+seq:
+
+```ts
+function saw(f: f32, t: f32): f32 {
+  return (((f * t * 1.0) % 1.0) - 0.5) * 1.0;
+}
+function seq(items: Array<f32>, dur: f32, t: f32): f32 {
+  return items[(Math.floor(t / dur) % items.length) as i32];
+}
+export function dsp(t: f32, i: f32): Array<f32> {
+  let out = saw(seq([110, 220, 330], 0.125, t), t) * Math.min(i / 0.1, 1.0);
+  return [out as f32, out as f32];
+}
+```
