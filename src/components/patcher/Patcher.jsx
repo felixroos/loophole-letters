@@ -50,12 +50,8 @@ export function Patcher() {
     },
   ];
   const handleMouseUp = (e) => {
-    if (mouseDown()) {
-      setTimeout(() => {
-        setMouseDown(false);
-        setActivePort();
-      });
-    }
+    setMouseDown(false);
+    setActivePort();
   };
   const createNode = (node) => {
     const [x, y] = mousePosition();
@@ -109,7 +105,11 @@ export function Patcher() {
     setSelectedNode();
   };
   const connect = (a, b) => {
-    setConnections(connections().concat([[a, b]]));
+    const con = [a, b].sort();
+    if (!connections().find((c) => c.join("=") === con.join("="))) {
+      // connect only if not already connected
+      setConnections(connections().concat([[a, b].sort()]));
+    }
   };
 
   const handlePortMouseDown = (node, port, isInlet) => (e) => {
@@ -143,7 +143,7 @@ export function Patcher() {
   };
 
   return (
-    <div class="relative bg-slate-400 w-full h-[200px] not-prose select-none font-sans">
+    <div class="relative bg-slate-400 w-full h-[300px] not-prose select-none font-sans">
       {/* dialog */}
       {showDialog() && (
         <div
@@ -204,7 +204,7 @@ export function Patcher() {
           <div
             style={`left: ${node.x}px; top: ${node.y}px`}
             class={`bg-white absolute border-2 ${
-              selectedNode() === node.id ? "border-red-500" : "border-slate-900"
+              selectedNode() === node.id ? "border-red-600" : "border-slate-900"
             }`}
             data-node={getNodeId(node)}
             onMouseDown={(e) => {
@@ -226,7 +226,7 @@ export function Patcher() {
                   >
                     <div
                       data-port={getPortId(node, port)}
-                      class="port w-3 h-3 bg-yellow-500 group-hover:bg-red-500"
+                      class="port w-3 h-3 bg-yellow-500 border-2 border-black group-hover:bg-red-500 rounded-full"
                     />
                     <div>{port.name}</div>
                   </div>
@@ -242,7 +242,7 @@ export function Patcher() {
                     <div>{port.name}</div>
                     <div
                       data-port={getPortId(node, port)}
-                      class="port w-3 h-3 bg-yellow-500 group-hover:bg-red-500"
+                      class="port w-3 h-3 bg-yellow-500 border-2 border-black group-hover:bg-red-500 rounded-full"
                     />
                   </div>
                 ))}
@@ -259,7 +259,8 @@ export function Patcher() {
           ))}
         </svg>
         <div class="absolute">
-          {mouseDown() && "MD"} {activePort()}{" "}
+          {nodes().length} nodes | {cables().length} cables |{" "}
+          {activePort()?.split(":").slice(1)}
         </div>
       </div>
     </div>
