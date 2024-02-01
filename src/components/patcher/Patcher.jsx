@@ -5,12 +5,13 @@ export function Patcher() {
   const [nodes, setNodes] = createSignal([]);
   const [connections, setConnections] = createSignal([]);
   const [selectedNode, setSelectedNode] = createSignal();
-  const [patching, setPatching] = createSignal(false);
   const [mouseDown, setMouseDown] = createSignal(false);
   const [activePort, setActivePort] = createSignal();
+  const isPatching = () => !!activePort(); /*  && !mouseDown() */
   const [mousePosition, setMousePosition] = createSignal();
-  const getPortId = (node, port) => `${node.id}:${node.type}:${port.name}`;
-  let pos, dragPos, nodeContainer;
+  const getNodeId = (node) => `${node.id}:${node.type}`;
+  const getPortId = (node, port) => `${getNodeId(node)}:${port.name}`;
+  let dragPos, nodeContainer;
   const getPortCenter = (portId) => {
     const el = nodeContainer.querySelector(`[data-port="${portId}"]`);
     const { x: xa, y: ya, width, height } = el.getBoundingClientRect();
@@ -26,8 +27,8 @@ export function Patcher() {
     }
     nodes(); // call to update
     connections().forEach((connection) => {
-      const [x1, y1] = getPortCenter(connection.from);
-      const [x2, y2] = getPortCenter(connection.to);
+      const [x1, y1] = getPortCenter(connection[0]);
+      const [x2, y2] = getPortCenter(connection[1]);
       _cables.push([x1, y1, x2, y2]);
     });
     return _cables;
@@ -48,31 +49,93 @@ export function Patcher() {
       inlets: [{ name: "left" }, { name: "right" }],
     },
   ];
-  const handleMouseUp = () => {
-    setMouseDown(false);
-    setTimeout(() => {
-      setPatching(false);
+  const handleMouseUp = (e) => {
+    if (mouseDown()) {
+      setTimeout(() => {
+        setMouseDown(false);
+        setActivePort();
+      });
+    }
+  };
+  const createNode = (node) => {
+    const [x, y] = mousePosition();
+    const id = Date.now();
+    setNodes([...nodes(), { ...node, x, y, id }]);
+    setShowDialog(false);
+  };
+  const deleteNode = (toDelete) => {
+    setSelectedNode(); // unselect
+    // unplug all connections from or to the node
+    setConnections(
+      connections().filter(
+        (con) => !con.find((p) => p.startsWith(`${toDelete}:`))
+      )
+    );
+    // delete node
+    setNodes(nodes().filter((node) => node.id !== toDelete));
+  };
+  const handleKeyDown = (e) => {
+    if (e.key === "Backspace" && !!selectedNode()) {
+      deleteNode(selectedNode());
+    } else if (e.key === "Escape" && showDialog()) {
+      setShowDialog(false);
+    } else if (e.key === "Escape" && activePort()) {
       setActivePort();
-    });
+      setSelectedNode();
+    } else if (e.key === "Escape" && selectedNode()) {
+      setSelectedNode();
+    }
   };
-  onMount(() => document?.addEventListener("mouseup", handleMouseUp));
-  onCleanup(() => document?.removeEventListener("mouseup", handleMouseUp));
-  let toPatch;
-  const handlePortMouseUp = (node, port) => (e) => {
-    const from = getPortId(toPatch[0], toPatch[1]);
-    const to = getPortId(node, port);
-    // console.log("connect", `${from} -> ${to}`);
-    setConnections(connections().concat([{ from, to }]));
-    e.stopPropagation();
+  onMount(() => {
+    document?.addEventListener("mouseup", handleMouseUp);
+    document?.addEventListener("keydown", handleKeyDown);
+  });
+  onCleanup(() => {
+    document?.removeEventListener("mouseup", handleMouseUp);
+    document?.removeEventListener("keydown", handleKeyDown);
+  });
+
+  const activatePort = (id, isInlet) => {
+    const connection = connections().find((con) => con.includes(id));
+    if (isInlet && connection) {
+      // break connection when already patched inlet is clicked
+      setConnections(connections().filter((con) => !con.includes(id)));
+      const nodeId = id.split(":")[0];
+      const outPort = connection.find((p) => !p.startsWith(nodeId));
+      outPort && setActivePort(outPort);
+    } else {
+      setActivePort(id);
+    }
+    setSelectedNode();
   };
-  const handlePortMouseDown = (node, port) => (e) => {
-    setActivePort(getPortId(node, port));
-    toPatch = [node, port];
-    e.stopPropagation();
+  const connect = (a, b) => {
+    setConnections(connections().concat([[a, b]]));
+  };
+
+  const handlePortMouseDown = (node, port, isInlet) => (e) => {
+    const id = getPortId(node, port);
+    if (activePort()) {
+      connect(activePort(), id);
+    } else {
+      activatePort(id, isInlet);
+    }
     setMouseDown(true);
-    setPatching(true);
+    e.stopImmediatePropagation();
+    e.stopPropagation();
   };
-  const handlePortClick = (e) => e.stopPropagation();
+  const handlePortMouseUp = (node, port, isInlet) => (e) => {
+    const from = activePort();
+    const to = getPortId(node, port);
+    if (from === to) {
+      activatePort(from, isInlet);
+    } else if (activePort()) {
+      connect(from, to);
+      setActivePort();
+    }
+    setMouseDown(false);
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+  };
   const getRelativeMousePosition = (e, el) => {
     const { x, y } = el.getBoundingClientRect();
     const { clientX, clientY } = e;
@@ -98,12 +161,7 @@ export function Patcher() {
               {nodeTypes.map((node) => (
                 <div
                   class="cursor-pointer border-2 border-slate-900 text-center"
-                  onClick={() => {
-                    const [x, y] = pos;
-                    const id = Date.now();
-                    setNodes([...nodes(), { ...node, x, y, id }]);
-                    setShowDialog(false);
-                  }}
+                  onClick={() => createNode(node)}
                 >
                   {node.type}
                 </div>
@@ -118,17 +176,15 @@ export function Patcher() {
         ref={(el) => {
           nodeContainer = el;
         }}
-        onClick={(e) => {
-          if (!mouseDown() && !patching() && e.target === e.currentTarget) {
-            const { offsetX, offsetY } = e;
-            pos = [offsetX, offsetY];
+        onMouseUp={(e) => {
+          if (!mouseDown() && !isPatching() && e.target === e.currentTarget) {
             setShowDialog(true);
           }
         }}
         onMouseMove={(e) => {
           const [x, y] = getRelativeMousePosition(e, e.currentTarget);
           setMousePosition([x, y]);
-          if (mouseDown() && selectedNode() && !patching()) {
+          if (mouseDown() && selectedNode() && !isPatching()) {
             e.stopPropagation();
             setNodes(
               nodes().map((node) =>
@@ -150,16 +206,14 @@ export function Patcher() {
             class={`bg-white absolute border-2 ${
               selectedNode() === node.id ? "border-red-500" : "border-slate-900"
             }`}
+            data-node={getNodeId(node)}
             onMouseDown={(e) => {
               const { offsetX, offsetY } = e;
               dragPos = [offsetX, offsetY];
               setMouseDown(true);
               setSelectedNode(node.id);
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log("click node");
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div class="w-full text-center">{node.type}</div>
             <div class="flex space-x-4 text-xs">
@@ -168,8 +222,7 @@ export function Patcher() {
                   <div
                     class="flex items-center -mx-1.5 space-x-1 group"
                     onMouseUp={handlePortMouseUp(node, port)}
-                    onMouseDown={handlePortMouseDown(node, port)}
-                    onClick={handlePortClick}
+                    onMouseDown={handlePortMouseDown(node, port, true)}
                   >
                     <div
                       data-port={getPortId(node, port)}
@@ -185,7 +238,6 @@ export function Patcher() {
                     class="flex items-center -mx-1.5 space-x-1 group"
                     onMouseUp={handlePortMouseUp(node, port)}
                     onMouseDown={handlePortMouseDown(node, port)}
-                    onClick={handlePortClick}
                   >
                     <div>{port.name}</div>
                     <div
@@ -206,6 +258,9 @@ export function Patcher() {
             />
           ))}
         </svg>
+        <div class="absolute">
+          {mouseDown() && "MD"} {activePort()}{" "}
+        </div>
       </div>
     </div>
   );
