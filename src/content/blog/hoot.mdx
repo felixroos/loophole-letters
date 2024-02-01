@@ -1,0 +1,27 @@
+---
+title: hoot - scheme to wasm aka lisp on the web
+description: ""
+date: "2024-02-01"
+tags: ["code"]
+draft: true
+---
+
+https://spritely.institute/news/scheme-to-wasm-lambdas-recursion.html
+https://spritely.institute/static/papers/scheme-primer.html
+https://gitlab.com/spritely/guile-hoot
+https://www.youtube.com/watch?v=8LuQtoy9NLs
+https://www.gnu.org/software/guile/
+https://racket-lang.org/
+
+- ran installation via homebrew
+- instructions are not working
+
+```js
+scheme@(guile-user)> ,use (hoot reflect)
+scheme@(guile-user)> (compile-value 42)
+;;; <stdin>:2:0: warning: possibly wrong number of arguments to `compile-value'
+ice-9/boot-9.scm:1676:22: In procedure raise-exception:
+Wrong number of arguments to #<procedure compile-value (reflect-wasm exp #:optional imports)>
+
+Entering a new prompt.  Type `,bt' for a backtrace or `,q' to continue.
+```

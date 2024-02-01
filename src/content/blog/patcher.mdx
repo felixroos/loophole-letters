@@ -1,0 +1,47 @@
+---
+title: Patcher
+description: ""
+date: "2024-02-01"
+tags: ["code"]
+draft: true
+---
+
+import { Patcher } from "../../components/patcher/Patcher.jsx";
+
+<Patcher client:only />
+
+devices in https://nnirror.xyz/web_patcher/
+
+- [~\*](https://docs.cycling74.com/max5/refpages/msp-ref/times~.html) a,b
+- clock_divider
+  - [mstohz](https://docs.cycling74.com/max8/refpages/rnbo_mstohz)
+  - [~\*](https://docs.cycling74.com/max5/refpages/msp-ref/times~.html)
+  - [phasor\~](https://docs.cycling74.com/max5/refpages/msp-ref/phasor~.html)
+  - [delta\~](https://docs.cycling74.com/max8/refpages/delta~)
+  - [lt\~](https://rnbo.cycling74.com/objects/ref/lt~)
+- [cycle](https://docs.cycling74.com/max5/refpages/msp-ref/cycle~.html)
+- [delay](https://docs.cycling74.com/max5/refpages/msp-ref/delay~.html)
+- [line](https://docs.cycling74.com/max5/refpages/msp-ref/line~.html)
+- [allpass](https://docs.cycling74.com/max5/refpages/msp-ref/allpass~.html)
+- [bpf](https://docs.cycling74.com/max5/refpages/msp-ref/svf~.html): in, cutoff, q
+- [hpf](https://docs.cycling74.com/max5/refpages/msp-ref/svf~.html)
+- [lpf](https://docs.cycling74.com/max5/refpages/msp-ref/svf~.html)
+- [noise](https://docs.cycling74.com/max5/refpages/msp-ref/noise~.html)
+- [number](https://docs.cycling74.com/max5/refpages/msp-ref/sig~.html)
+- pattern
+  - [list.rev](https://rnbo.cycling74.com/objects/ref/list.rev)
+  - [list.ecils](https://rnbo.cycling74.com/objects/ref/list.ecils) 1
+  - [listfunnel](https://rnbo.cycling74.com/objects/ref/listfunnel)
+  - [unpack](https://rnbo.cycling74.com/objects/ref/listfunnel) 0. 0.
+  - [poke~](https://docs.cycling74.com/max5/refpages/msp-ref/poke~.html)
+- [phasor\~](https://docs.cycling74.com/max5/refpages/msp-ref/phasor~.html)
+- [sah~](https://docs.cycling74.com/max5/refpages/msp-ref/sah~.html)
+- [scale](https://docs.cycling74.com/max5/refpages/max-ref/scale.html)
+- skipper
+  - uses custom [gen](https://docs.cycling74.com/max8/vignettes/gen_topic) patch
+- [slide](https://docs.cycling74.com/max5/refpages/msp-ref/slide~.html)
+- speedlim
+  - [snapshot~](https://docs.cycling74.com/max5/refpages/msp-ref/snapshot~.html)
+  - [sig~](https://docs.cycling74.com/max5/refpages/msp-ref/sig~.html)
+- [tri~](https://docs.cycling74.com/max5/refpages/msp-ref/tri~.html)
+- microphone input
