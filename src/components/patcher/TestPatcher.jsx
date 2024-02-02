@@ -184,11 +184,6 @@ export function TestPatcher() {
         }} */
         nodeTypes={[
           {
-            type: "slider",
-            render: Slider,
-            outlets: [{ name: "n" }],
-          },
-          {
             type: "number",
             render: NumberInput,
             outlets: [{ name: "n" }],
@@ -196,11 +191,6 @@ export function TestPatcher() {
           {
             type: "osc",
             inlets: [{ name: "frequency" }, { name: "detune" }],
-            outlets: [{ name: "~" }],
-          },
-          {
-            type: "lfo",
-            inlets: [{ name: "frequency" }],
             outlets: [{ name: "~" }],
           },
           {
