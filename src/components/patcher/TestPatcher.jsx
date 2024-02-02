@@ -1,5 +1,29 @@
-import { createSignal, onMount } from "solid-js";
+import { createEffect, createSignal, onMount } from "solid-js";
 import { Patcher } from "./Patcher";
+
+let ctx = typeof AudioContext !== "undefined" ? new AudioContext() : null,
+  audioOutput,
+  started,
+  fadeTime = 0.1,
+  state,
+  instances = {};
+
+if (ctx) {
+  audioOutput = ctx.destination;
+}
+
+function setNodeInlet(inlet, value) {
+  const [a, b, c] = inlet.split(":");
+  const node = `${a}:${b}`;
+  const inletName = c;
+  const instance = instances[node];
+  if (instance?.[inletName]) {
+    instance[inletName].value = value;
+    //console.log("set", inletName, value);
+  } else {
+    console.warn(`instance ${instance} has no inlet ${inletName}`);
+  }
+}
 
 function Slider(props) {
   const [value, setValue] = createSignal(props.initialValue ?? 0);
@@ -11,7 +35,8 @@ function Slider(props) {
         onInput={(e) => {
           const next = Number(e.target.value);
           setValue(next);
-          props.onChange(next);
+          const inlet = props.getOutletTarget("n");
+          setNodeInlet(inlet, next * 1200);
         }}
         min={props.min ?? 0}
         max={props.max ?? 1}
@@ -25,11 +50,36 @@ function Slider(props) {
   );
 }
 
-let ctx,
-  audioOutput,
-  started,
-  fadeTime = 0.1,
-  state;
+function NumberInput(props) {
+  const [value, setValue] = createSignal(props.state ?? 0);
+  const update = (v) => {
+    setValue(v);
+    const inlet = props.getOutletTarget("n");
+    setNodeInlet(inlet, v);
+  };
+  createEffect(() => {
+    update(props.state);
+  });
+  return (
+    <div class="items-end flex flex-col p-2">
+      <input
+        type="number"
+        class="text-xs w-[100px] bg-stone-800 text-white"
+        value={value()}
+        onInput={(e) => update(Number(e.target.value))}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }}
+      />
+    </div>
+  );
+}
+
 let fade = (gainNode, from, to, fadeTime, time = ctx.currentTime) => {
   gainNode.gain.setValueAtTime(from, time);
   gainNode.gain.linearRampToValueAtTime(to, time + fadeTime);
@@ -41,66 +91,69 @@ function osc(freq) {
   osc.start();
   return osc;
 }
-function gain2x() {
+function gain() {
   const g = ctx.createGain();
-  g.gain.value = 100;
   return g;
 }
-const instances = {};
 
-function renderGraph(nodes, connections) {
-  state = { nodes, connections };
-  if (!started) {
-    return;
-  }
-  // destroy previous graph
-  if (audioOutput) {
-    fade(audioOutput, 1, 0, fadeTime);
-    let old = audioOutput;
-    setTimeout(() => {
-      old.disconnect();
-      console.log("disconnect", old);
-    }, fadeTime * 2000);
-    Object.values(instances).forEach((instance) => {
-      setTimeout(() => {
-        console.log("disconnect", instance);
-        instance?.disconnect();
-      }, fadeTime * 2000);
-    });
-  }
-  // start new graph
-  audioOutput = ctx.createGain();
-  audioOutput.connect(ctx.destination);
-  fade(audioOutput, 0, 1, fadeTime);
-  //console.log("changeGraph", nodes, connections);
-  nodes.forEach((node) => {
+function createNode(node) {
+  console.log("create", node);
+  try {
     if (node.type === "osc") {
       instances[node.id] = osc(110);
+      console.log("create osc");
     } else if (node.type === "lfo") {
       instances[node.id] = osc(8);
-    } else if (node.type === "gain2x") {
-      instances[node.id] = gain2x();
-    }
-  });
-  //console.log("instances", instances);
-  let port2node = (portId) => portId.split(":").slice(0, 2).join(":");
-  connections.forEach(([outlet, inlet]) => {
-    const fromId = port2node(outlet);
-    const toId = port2node(inlet);
-    const inletName = inlet.split(":").slice(-1)[0];
-    const source = instances[fromId];
-    const isAudioOutput = toId.endsWith(":out");
-
-    let destination;
-    if (isAudioOutput) {
-      destination = audioOutput;
+    } else if (node.type === "gain") {
+      instances[node.id] = gain();
+      console.log("create gain");
     } else {
-      destination =
-        inletName === "in" ? instances[toId] : instances[toId][inletName];
+      // console.warn("unhandled node", node);
     }
-    console.log("connect", fromId, "to", toId);
-    source.connect(destination);
-  });
+  } catch (err) {
+    console.log("err", err);
+  }
+}
+function deleteNode(node) {
+  console.log("delete");
+}
+
+let port2node = (portId) => portId.split(":").slice(0, 2).join(":");
+
+function createConnection(outlet, inlet, nodeState) {
+  const fromId = port2node(outlet);
+  const toId = port2node(inlet);
+  const inletName = inlet.split(":").slice(-1)[0];
+  const sourceNode = instances[fromId];
+  const isAudioOutput = toId.endsWith(":out");
+  const isNumber = fromId.endsWith(":number");
+  let destination;
+  if (sourceNode && isAudioOutput) {
+    console.log(`connect ${fromId} to destination`);
+    destination = audioOutput;
+    sourceNode.connect(audioOutput);
+  } else if (isNumber) {
+    console.log(`set ${inlet} to ${nodeState[fromId]}`);
+    setNodeInlet(inlet, nodeState[fromId]);
+  } else if (sourceNode) {
+    destination =
+      inletName === "in" ? instances[toId] : instances[toId][inletName];
+    console.log("connect", sourceNode, destination);
+    sourceNode.connect(destination);
+  } else {
+    console.warn("unhandled connection", fromId, toId);
+  }
+}
+
+function deleteConnection([outlet, inlet]) {
+  console.log("disconnect", outlet, inlet);
+  const fromId = port2node(outlet);
+  const toId = port2node(inlet);
+  const inletName = inlet.split(":").slice(-1)[0];
+  const sourceNode = instances[fromId];
+  if (sourceNode) {
+    sourceNode.disconnect();
+  }
 }
 
 export function TestPatcher() {
@@ -108,31 +161,46 @@ export function TestPatcher() {
     <div>
       <Patcher
         onStart={() => {
-          ctx = new AudioContext();
           ctx.resume();
           started = true;
-          renderGraph(state.nodes, state.connections);
+          console.log("lets goo");
+          // renderGraph(state.nodes, state.connections, state.nodeState);
         }}
         init={{
           nodes: [
-            { id: "1706871231591:lfo", x: 50, y: 150 },
-            { id: "1706871232440:gain2x", x: 180, y: 150 },
+            { id: "1706871232440:number", x: 120, y: 120, state: 220 },
             { id: "1706871237562:osc", x: 300, y: 150 },
             { id: "1706871243098:out", x: 450, y: 150 },
           ],
           connections: [
-            ["1706871231591:lfo:~", "1706871232440:gain2x:in"],
-            ["1706871232440:gain2x:~", "1706871237562:osc:detune"],
+            ["1706871232440:number:n", "1706871237562:osc:frequency"],
             ["1706871237562:osc:~", "1706871243098:out:destination"],
           ],
         }}
-        onChangeGraph={renderGraph}
+        onCreateNode={createNode}
+        onDeleteNode={deleteNode}
+        onConnect={createConnection}
+        onDisconnect={deleteConnection}
+        /* onChangeState={(id, state) => {
+          const [_, type] = id.split(":");
+          if (type === "slider") {
+            const outlet = `${id}:n`;
+            console.log("outlet", outlet);
+            //const con = connections.find(([a, b]) => a === outlet);
+            //console.log("change slider", state, con);
+          }
+        }} */
         nodeTypes={[
-          /* {
+          {
             type: "slider",
             render: Slider,
             outlets: [{ name: "n" }],
-          }, */
+          },
+          {
+            type: "number",
+            render: NumberInput,
+            outlets: [{ name: "n" }],
+          },
           {
             type: "osc",
             inlets: [{ name: "frequency" }, { name: "detune" }],
@@ -144,8 +212,8 @@ export function TestPatcher() {
             outlets: [{ name: "~" }],
           },
           {
-            type: "gain2x",
-            inlets: [{ name: "in" }],
+            type: "gain",
+            inlets: [{ name: "in" }, { name: "gain" }],
             outlets: [{ name: "~" }],
           },
           {
