@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onMount } from "solid-js";
 import { Patcher } from "./Patcher";
+import { fm } from "./lib";
 
 let ctx = typeof AudioContext !== "undefined" ? new AudioContext() : null,
   audioOutput,
@@ -19,7 +20,7 @@ function setNodeInlet(inlet, value) {
   const instance = instances[node];
   if (instance?.[inletName]) {
     instance[inletName].value = value;
-    //console.log("set", inletName, value);
+    // console.log("set", inletName, value);
   } else {
     console.warn(`instance ${instance} has no inlet ${inletName}`);
   }
@@ -51,15 +52,16 @@ function Slider(props) {
 }
 
 function NumberInput(props) {
+  // console.log("Number input", props);
   const [value, setValue] = createSignal(props.state ?? 0);
   const update = (v) => {
     setValue(v);
     const inlet = props.getOutletTarget("n");
-    setNodeInlet(inlet, v);
+    props.onChange(v);
+    if (inlet) {
+      setNodeInlet(inlet, v);
+    }
   };
-  createEffect(() => {
-    update(props.state);
-  });
   return (
     <div class="items-end flex flex-col p-2">
       <input
@@ -166,17 +168,7 @@ export function TestPatcher() {
           console.log("lets goo");
           // renderGraph(state.nodes, state.connections, state.nodeState);
         }}
-        init={{
-          nodes: [
-            { id: "1706871232440:number", x: 120, y: 120, state: 220 },
-            { id: "1706871237562:osc", x: 300, y: 150 },
-            { id: "1706871243098:out", x: 450, y: 150 },
-          ],
-          connections: [
-            ["1706871232440:number:n", "1706871237562:osc:frequency"],
-            ["1706871237562:osc:~", "1706871243098:out:destination"],
-          ],
-        }}
+        init={fm}
         onCreateNode={createNode}
         onDeleteNode={deleteNode}
         onConnect={createConnection}

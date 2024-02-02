@@ -14,11 +14,11 @@ export function Patcher(props) {
   const isPatching = () => !!activePort();
   const [mousePosition, setMousePosition] = createSignal();
   const state = () => ({
-    activePort: activePort(),
+    //activePort: activePort(),
     nodes: nodes().map(({ id, type }) => {
       const [x, y] = nodePositions()[id];
       const state = nodeState()[id];
-      return { id, type, x, y, state };
+      return { id, /* type, */ x, y, state };
     }),
     connections: connections(),
   });
@@ -121,12 +121,14 @@ export function Patcher(props) {
     }
     props.onConnect?.(a, b, nodeState());
   };
-
+  let initialState = {};
   // init patch
   onMount(() => {
     if (props.init) {
       props.init.nodes?.forEach((node) => {
+        // console.log("init", node);
         const type = node.id.split(":").slice(1)[0];
+        initialState[node.id] = node.state;
         createNode(type, [node.x, node.y], node.id, node.state);
       });
       setTimeout(() => {
@@ -136,6 +138,7 @@ export function Patcher(props) {
         );
       });
     }
+    // console.log("initialState", initialState);
   });
 
   /**
@@ -293,8 +296,9 @@ export function Patcher(props) {
               {node.render &&
                 node.render({
                   node,
-                  state: nodeState()[node.id],
-                  connections: connections(),
+                  state: initialState[node.id], // use static version to not trigger rerender
+                  // state: nodeState()[node.id],
+                  //connections: connections(),
                   getOutletTarget: (outlet) => {
                     const outletId = `${node.id}:${outlet}`;
                     const con = connections().find(
@@ -302,11 +306,10 @@ export function Patcher(props) {
                     );
                     return con[1];
                   },
-                  /* onChange: (state) => {
-                    //const _state = { ...nodeState(), [node.id]: state };
-                    //setNodeState(_state);
-                    props.onChangeState?.(node.id, state, connections());
-                  }, */
+                  onChange: (state) => {
+                    const _state = { ...nodeState(), [node.id]: state };
+                    setNodeState(_state);
+                  },
                 })}
               {/* node ports */}
               <div class="flex space-x-4 text-xs justify-between">
@@ -355,7 +358,7 @@ export function Patcher(props) {
         </svg>
       </div>
       {/* state */}
-      <pre>{JSON.stringify(state(), null, 2)}</pre>
+      <pre class="text-xs select-all">{JSON.stringify(state(), null, 2)}</pre>
     </div>
   );
 }
