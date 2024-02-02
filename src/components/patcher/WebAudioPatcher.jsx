@@ -82,30 +82,17 @@ export function WebAudioPatcher(props) {
     );
   }
 
-  let fade = (gainNode, from, to, fadeTime, time = ctx.currentTime) => {
-    gainNode.gain.setValueAtTime(from, time);
-    gainNode.gain.linearRampToValueAtTime(to, time + fadeTime);
-  };
-  function osc(freq) {
-    const osc = ctx.createOscillator();
-    osc.frequency.value = freq;
-    osc.detune.value = 2;
-    osc.start();
-    return osc;
-  }
-  function gain() {
-    const g = ctx.createGain();
-    return g;
-  }
   function createNode(node) {
     console.log("create", node);
     try {
       if (node.type === "osc") {
-        instances[node.id] = osc(110);
-      } else if (node.type === "lfo") {
-        instances[node.id] = osc(8);
+        const osc = ctx.createOscillator();
+        osc.frequency.value = 220;
+        osc.detune.value = 2;
+        osc.start();
+        instances[node.id] = osc;
       } else if (node.type === "gain") {
-        instances[node.id] = gain();
+        instances[node.id] = ctx.createGain();
       } else if (node.type === "lpf") {
         instances[node.id] = ctx.createBiquadFilter();
       } else {
@@ -116,7 +103,7 @@ export function WebAudioPatcher(props) {
     }
   }
   function deleteNode(node) {
-    console.log("delete");
+    console.log("TODO: delete", node);
   }
   function createConnection(outlet, inlet, nodeState) {
     const fromId = port2node(outlet);
