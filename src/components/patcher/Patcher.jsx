@@ -9,6 +9,10 @@ export function Patcher() {
   const [activePort, setActivePort] = createSignal();
   const isPatching = () => !!activePort(); /*  && !mouseDown() */
   const [mousePosition, setMousePosition] = createSignal();
+  const state = () => ({
+    nodes: nodes().map(({ id, type, x, y }) => ({ id, type, x, y })),
+    connections: connections(),
+  });
   const getNodeId = (node) => `${node.id}:${node.type}`;
   const getPortId = (node, port) => `${getNodeId(node)}:${port.name}`;
   let dragPos, nodeContainer;
@@ -143,7 +147,7 @@ export function Patcher() {
   };
 
   return (
-    <div class="relative bg-slate-400 w-full h-[300px] not-prose select-none font-sans">
+    <div class="relative bg-slate-200 rounded-md w-full h-[400px] not-prose select-none font-sans">
       {/* dialog */}
       {showDialog() && (
         <div
@@ -258,11 +262,8 @@ export function Patcher() {
             />
           ))}
         </svg>
-        <div class="absolute">
-          {nodes().length} nodes | {cables().length} cables |{" "}
-          {activePort()?.split(":").slice(1)}
-        </div>
       </div>
+      <pre>{JSON.stringify(state(), null, 2)}</pre>
     </div>
   );
 }
