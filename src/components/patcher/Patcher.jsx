@@ -226,7 +226,11 @@ export function Patcher(props) {
    */
 
   return (
-    <div class="relative bg-stone-800 rounded-md w-full h-[400px] not-prose select-none font-sans">
+    <div
+      class="relative bg-stone-800 rounded-md w-full not-prose select-none font-sans"
+      style={{ height: `${props.height || 600}px` }}
+      onMouseMove={handleNodeContainerMouseMove}
+    >
       {showStart() && (
         <div
           class="absolute w-full h-full z-10 bg-[#00ff0010] p-4 flex justify-center items-center"
@@ -245,10 +249,14 @@ export function Patcher(props) {
         <div
           class="absolute w-full h-full z-10 bg-[#00000010] p-4 flex justify-center"
           onClick={() => setShowDialog(false)}
+          onMouseMove={(e) => e.stopImmediatePropagation()}
         >
           <div
-            class="w-64 bg-slate-200 p-2 border-2 border-slate-900 flex-col space-y-2"
+            class="w-[200px] h-[200px] overflow-auto absolute bg-stone-600 p-2 border-2 border-slate-900 flex-col space-y-2 text-white"
             onClick={(e) => e.stopPropagation()}
+            style={`left: ${mousePosition()[0] - 100}px; top: ${
+              mousePosition()[1] - 100
+            }px`}
           >
             <div class="flex justify-center">
               <h2>Create Node</h2>
@@ -273,7 +281,6 @@ export function Patcher(props) {
           nodeContainer = el;
         }}
         onMouseUp={handleNodeContainerMouseUp}
-        onMouseMove={handleNodeContainerMouseMove}
       >
         {/* nodes */}
         <For each={nodes()}>
@@ -291,7 +298,7 @@ export function Patcher(props) {
               onMouseDown={[handleNodeMouseDown, node]}
               onClick={(e) => e.stopPropagation()}
             >
-              <div class="w-full text-center">{node.type}</div>
+              <div class="w-full text-center text-sm">{node.type}</div>
               {/* node components */}
               {node.render &&
                 node.render({
@@ -356,9 +363,20 @@ export function Patcher(props) {
             />
           ))}
         </svg>
+        <div class="absolute left-2 top-0 flex flex-col">
+          {props.menu}
+          <button
+            class=" text-white"
+            onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify(state()));
+              alert("copied");
+            }}
+          >
+            copy
+          </button>
+        </div>
       </div>
       {/* state */}
-      <pre class="text-xs select-all">{JSON.stringify(state(), null, 2)}</pre>
     </div>
   );
 }

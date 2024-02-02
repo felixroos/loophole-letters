@@ -6,6 +6,9 @@ tags: ["code"]
 draft: true
 ---
 
-import { TestPatcher } from "../../components/patcher/TestPatcher.jsx";
+import { WebAudioPatcher } from "../../components/patcher/WebAudioPatcher.jsx";
+import { hello, fm } from "../../components/patcher/lib.js";
 
-<TestPatcher client:only />
+<WebAudioPatcher client:only init={hello} height={300} />
+
+<WebAudioPatcher client:only init={fm} />
