@@ -82,20 +82,67 @@ export function WebAudioPatcher(props) {
     );
   }
 
+  /* function ConstInput(props) {
+    // console.log("Number input", props);
+    const [value, setValue] = createSignal(props.state ?? 0);
+    const update = (v) => {
+      setValue(v);
+      const instance = instances[props.node.id];
+      if (instance) {
+        //instances[props.node.id].offset.value = v;
+        instances[props.node.id].gain.value = v;
+      } else {
+        console.warn("instance not found", props.node.id);
+      }
+      // const inlet = props.getOutletTarget("n");
+      props.onChange(v);
+    };
+    return (
+      <input
+        type="number"
+        class="text-xs w-[80px] bg-stone-800 text-white p-0.5"
+        value={value()}
+        onInput={(e) => update(Number(e.target.value))}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }}
+      />
+    );
+  } */
+
+  function osc(type) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 220;
+    osc.detune.value = 2;
+    osc.type = type;
+    osc.start();
+    return osc;
+  }
+
+  const oscTypes = {
+    sine: "sine",
+    pulse: "square",
+    saw: "sawtooth",
+    tri: "triangle",
+  };
+
   function createNode(node) {
-    console.log("create", node);
     try {
-      if (node.type === "osc") {
-        const osc = ctx.createOscillator();
-        osc.frequency.value = 220;
-        osc.detune.value = 2;
-        osc.start();
-        instances[node.id] = osc;
+      if (Object.keys(oscTypes).includes(node.type)) {
+        instances[node.id] = osc(oscTypes[node.type]);
       } else if (node.type === "gain") {
         instances[node.id] = ctx.createGain();
       } else if (node.type === "lpf") {
         instances[node.id] = ctx.createBiquadFilter();
-      } else {
+      } /*  else if (node.type === "const") {
+        instances[node.id] = ctx.createGain();
+        instances[node.id].gain.value = 0;
+      } */ else {
         // console.warn("unhandled node", node);
       }
     } catch (err) {
@@ -159,8 +206,28 @@ export function WebAudioPatcher(props) {
             render: NumberInput,
             outlets: [{ name: "n" }],
           },
+          /* {
+            type: "const",
+            render: ConstInput,
+            outlets: [{ name: "~" }],
+          }, */
           {
-            type: "osc",
+            type: "sine",
+            inlets: [{ name: "frequency" }, { name: "detune" }],
+            outlets: [{ name: "~" }],
+          },
+          {
+            type: "saw",
+            inlets: [{ name: "frequency" }, { name: "detune" }],
+            outlets: [{ name: "~" }],
+          },
+          {
+            type: "tri",
+            inlets: [{ name: "frequency" }, { name: "detune" }],
+            outlets: [{ name: "~" }],
+          },
+          {
+            type: "pulse",
             inlets: [{ name: "frequency" }, { name: "detune" }],
             outlets: [{ name: "~" }],
           },
@@ -199,3 +266,44 @@ export function WebAudioPatcher(props) {
     </div>
   );
 }
+
+/* noisecraft nodes:
+
+- [ ] add
+- [ ] sub
+- [ ] mul
+- [ ] div
+- [ ] mod
+- [ ] const
+- [ ] equal
+- [ ] greater
+
+- [ ] adsr
+- [ ] audioout
+
+- [ ] clock
+- [ ] clockdiv
+- [ ] clockout
+
+- [ ] delay
+- [ ] distort
+- [ ] filter
+- [ ] fold
+
+- [ ] gateseq
+- [ ] monoseq
+
+- [ ] hold
+- [ ] knob
+- [ ] midin
+- [ ] nop
+- [ ] notes
+
+- [x] sine
+- [x] saw
+- [x] tri
+- [x] pulse, todo: pw
+- [ ] noise
+
+- [ ] scope
+- [ ] slide */
