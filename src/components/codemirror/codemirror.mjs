@@ -1,5 +1,5 @@
 import { EditorView, basicSetup } from "codemirror";
-import strudelTheme from "../../lib/codemirror/strudel-theme.mjs";
+// import strudelTheme from "../../lib/codemirror/strudel-theme.mjs";
 import { javascript } from "@codemirror/lang-javascript";
 
 export function initEditor({
@@ -12,7 +12,7 @@ export function initEditor({
   let editor = new EditorView({
     extensions: [
       basicSetup,
-      strudelTheme,
+      // strudelTheme,
       javascript(),
       EditorView.updateListener.of((v) => {
         if (v.docChanged) {
@@ -39,4 +39,5 @@ export function initEditor({
       onStop?.();
     }
   });
+  root.style.backgroundColor = "white";
 }

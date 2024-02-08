@@ -4,5 +4,6 @@
     "strictNullChecks": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js"
-  }
+  },
+  "exclude": ["./src/components/wasmsynth/**/*", "./src/components/asc/**/*"]
 }
