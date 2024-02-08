@@ -1,65 +1,235 @@
 ---
 title: WASM DSP Shootout
 description: "Comparing different languages targetting WASM for DSP"
-date: "2024-01-23"
+date: "2024-02-08"
 tags: ["code"]
-draft: true
 ---
 
 import { WasmSynth } from "../../components/wasmsynth/WasmSynth";
+import rustsaw from "../../components/wasmsynth/rustsaw.wasm?url";
+import csaw from "../../components/wasmsynth/csaw.wasm?url";
+import zigsaw from "../../components/wasmsynth/zigsaw.wasm?url";
+import ascsaw from "../../components/wasmsynth/ascsaw.wasm?url";
+
+The fact that WASM is a compilation target for many system level languages makes it a good candidate to create a DSP format that is language independent and runs everywhere.
+Let's compare different languages and the WASM output they produce. For comparison, we'll take a simple saw wave.
 
 ## C
 
-import csaw from "../../components/wasmsynth/csaw.wasm?url";
+This is a saw wave in C:
 
-<WasmSynth
-  client:only
-  file={csaw}
-  code={`#include <math.h>
+```c
+#include <math.h>
 #include <emscripten.h>
 EMSCRIPTEN_KEEPALIVE
 double saw(double t, double f) {
-    return fmod((f * t * 1.0), 1.0) - 0.5 * 2.0;
+    return (fmod(f * t, 1.0) - 0.5) * 2.0;
 }
-`}
-/>
+
+```
+
+Using [emscripten](https://emscripten.org/docs/getting_started/Tutorial.html), we can produce a wasm file from c with:
+
+```sh
+# brew install emscripten
+emcc -O2 csaw.c -o csaw # outputs csaw.wasm
+cp csaw.wasm ..
+```
+
+Hit the play button to listen to it:
+
+<WasmSynth client:only file={csaw} />
 
 ## Zig
 
-import zigsaw from "../../components/wasmsynth/zigsaw.wasm?url";
+This is a saw wave in zig:
 
-<WasmSynth
-  client:only
-  file={zigsaw}
-  code={`const std = @import("std");
+```rust
+const std = @import("std");
 export fn saw(t: f64, f: f64) f64 {
     return ((@mod(f * t, 1.0)) - 0.5) * 2.0;
-}`}
-/>
+}
+```
+
+The zig compiler itself supports compiling to wasm like so:
+
+```sh
+# brew install zig
+zig build-lib zigsaw.zig -target wasm32-freestanding -dynamic -rdynamic -O ReleaseSmall # builds zigsaw.wasm
+cp zigsaw.wasm ..
+```
+
+<WasmSynth client:only file={zigsaw} />
 
 ## Rust
 
-import rustsaw from "../../components/wasmsynth/rustsaw.wasm?url";
+This is a saw wave in rust:
 
-<WasmSynth
-  client:only
-  file={rustsaw}
-  code={`use wasm_bindgen::prelude::*;
+```rust
+use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn saw(t: f64, f: f64) -> f64 {
     return (((f * t * 1.0) % 1.0) - 0.5) * 2.0;
 }
-`}
-/>
+```
+
+[Compiling to WASM](https://developer.mozilla.org/en-US/docs/WebAssembly/Rust_to_Wasm):
+
+```sh
+# https://www.rust-lang.org/tools/install
+cargo install wasm-pack # prequisite
+wasm-pack build --target bundler # builds pkg/rustsaw_bg.wasm
+cp pkg/rustsaw_bg.wasm ..
+```
+
+<WasmSynth client:only file={rustsaw} />
 
 ## AssemblyScript
 
-import ascsaw from "../../components/wasmsynth/ascsaw.wasm?url";
+This is the saw in AssemblyScript:
 
-<WasmSynth
-  client:only
-  file={ascsaw}
-  code={`export function saw(t: f64, f: f64): f64 {
+```ts
+export function saw(t: f64, f: f64): f64 {
+  return (((f * t) % 1.0) - 0.5) * 2.0;
+}
+```
+
+[project setup](https://www.assemblyscript.org/getting-started.html#setting-up-a-new-project)
+
+```sh
+npm run asbuild # build
+cp ascsaw/build/release.wasm ..
+```
+
+<WasmSynth client:only file={ascsaw} />
+
+## File Size Comparison
+
+Let's compare the file sizes of the compiled wasm files:
+
+| file         | size |
+| ------------ | ---- |
+| ascsaw.wasm  | 122B |
+| rustsaw.wasm | 653B |
+| csaw.wasm    | 683B |
+| zigsaw.wasm  | 690B |
+
+It turns out AssemblyScript produces binaries that are over 5 times smaller than the other language, who are pretty similar in size
+
+## Looking at the WAT
+
+WebAssembly also has a text format called WAT (= Web Assembly Text). The AssemblyScript version looks like this:
+
+```plaintext
+(module
+  (type $t0 (func (param f64 f64) (result f64)))
+  (func $saw (export "saw") (type $t0) (param $p0 f64) (param $p1 f64) (result f64)
+    (f64.mul
+      (f64.add
+        (f64.copysign
+          (f64.sub
+            (local.tee $p0
+              (f64.mul
+                (local.get $p1)
+                (local.get $p0)))
+            (f64.trunc
+              (local.get $p0)))
+          (local.get $p0))
+        (f64.const -0x1p-1 (;=-0.5;)))
+      (f64.const 0x1p+1 (;=2;))))
+  (memory $memory (export "memory") 0))
+```
+
+So here we see a bunch of S-Expressions!
+
+Compare that with the function again:
+
+```ts
+export function saw(t: f64, f: f64): f64 {
   return (((f * t * 1.0) % 1.0) - 0.5) * 2.0;
-}`}
-/>
+}
+```
+
+I might look deeper into WAT in a future post.
+
+## Glue Code
+
+All of the above wasm files run in the browser using the same glue code, which looks like this:
+
+```js
+class WasmProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.t = 0; // samples passed
+    this.f = 110;
+    this.active = true;
+    this.port.onmessage = (e) => {
+      const key = Object.keys(e.data)[0];
+      const value = e.data[key];
+      switch (key) {
+        case "webassembly":
+          WebAssembly.instantiate(value, this.importObject).then((result) => {
+            this.api = result.instance.exports;
+            this.port.postMessage("OK");
+          });
+          break;
+        case "frequency":
+          this.f = value;
+          break;
+        case "stop":
+          console.log("stop");
+          this.active = false;
+      }
+    };
+  }
+
+  process(inputs, outputs, parameters) {
+    if (this.api && outputs[0][0]) {
+      const output = outputs[0];
+      for (let i = 0; i < output[0].length; i++) {
+        let t = this.t;
+        let out = 0;
+        out = this.api.saw(t / 44100, this.f);
+        output.forEach((channel) => {
+          channel[i] = out;
+        });
+        this.t++;
+      }
+    }
+    return this.active;
+  }
+}
+registerProcessor("wasm-processor", WasmProcessor);
+```
+
+The button click handler does this:
+
+```js
+import workletUrl from "./worklet.js?url";
+let started = false,
+  node;
+const ac = new AudioContext();
+const handleClick = async () => {
+  if (!started) {
+    await ac.resume();
+    await ac.audioWorklet.addModule(workletUrl);
+    node = new AudioWorkletNode(ac, "wasm-processor");
+    let res = await fetch("out.wasm"); //
+    const buffer = await res.arrayBuffer();
+    node.port.postMessage({ webassembly: buffer });
+    node.connect(ac.destination);
+    started = true;
+  } else {
+    node.port.postMessage({ stop: true });
+    node.disconnect();
+    started = false;
+  }
+};
+```
+
+The `process` function in the `WasmProcessor` can surely be optimized further, but it should be enough for now to see how different languages can be compiled to WASM.
+
+## Conclusion
+
+This experiment further makes AssemblyScript look like the best candidate to use for my experiments. It is not only the only language that can be compiled in the browser, but it also produces the smalles binaries!
+On top of that, it tickles my JavaScript brain because it looks like typescript.

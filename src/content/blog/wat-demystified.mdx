@@ -1,0 +1,103 @@
+---
+title: WAT demystified
+description: "Looking at the WebAssembly Text format"
+date: "2024-02-09"
+tags: ["code"]
+draft: true
+---
+
+The function header is pretty easy to digest:
+
+```
+func $saw (export "saw") (type $t0) (param $p0 f64) (param $p1 f64) (result f64)
+```
+
+We see that `t` is now called `$p0` and `f` is now called `$p1`.
+Let's just focus on the calculation:
+
+```
+(f64.mul
+  (f64.add
+    (f64.copysign
+      (f64.sub
+        (local.tee $p0
+          (f64.mul
+            (local.get $p1)
+            (local.get $p0)))
+        (f64.trunc
+          (local.get $p0)))
+      (local.get $p0))
+    (f64.const -0x1p-1 (;=-0.5;)))
+  (f64.const 0x1p+1 (;=2;)))
+```
+
+.. and replace all `local.get $X` with our original variable names + remove all f64. prefixes + write out the consts:
+
+```
+(mul
+  (add
+    (copysign
+      (sub
+        (local.tee t
+          (mul
+            f
+            t))
+        (trunc
+          t))
+      t)
+    -0.5)
+  2)
+```
+
+Let's write it in one line:
+
+```
+(mul (add (copysign (sub (local.tee t (mul f t)) (trunc t)) t) -0.5) 2)
+```
+
+We see the following instructions being used here:
+
+- [mul](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Multiplication)
+- [add](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Addition)
+- [sub](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Subtraction)
+- [copysign](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Copy_sign)
+- [local.tee](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local_tee)
+- [trunc](https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric/Truncate_float_to_int)
+
+Following the parens, we could make out an order of execution:
+
+Now let's try to convert the prefix notation `(mul a b)` to infix notation `a * b`:
+
+```
+((copysign ((local.tee t (f * t)) - t) t) - 0.5) * 2.0
+```
+
+Now I'm not sure how to simplify that further, because `local.tee` and `copysign` are not arithmetic operations,
+but rather do something with the stack.
+
+In a more imperative way, the order of instructions is:
+
+```sh
+(f * t)
+local.tee t _ # t = f*t
+_ - t # (f*t) - t
+copysign _ t
+_ - 0.5
+_ * 2.0
+```
+
+The "\_" stands for the result of the last operation.
+
+Let's compare that with our AssemblyScript version:
+
+```
+((copysign ((local.tee t (f * t)) - t) t) - 0.5) * 2.0
+(((f * t) % 1.0)                          - 0.5) * 2.0
+```
+
+This suggests that these two lines are equal:
+
+```
+(copysign ((local.tee t (f * t)) - t) t)
+((f * t) % 1.0)
+```

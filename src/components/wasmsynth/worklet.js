@@ -25,7 +25,7 @@ class WasmProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
-    if (this.api) {
+    if (this.api && outputs[0][0]) {
       const output = outputs[0];
       for (let i = 0; i < output[0].length; i++) {
         let t = this.t;
